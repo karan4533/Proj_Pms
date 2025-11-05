@@ -114,6 +114,8 @@ export const tasks = pgTable('tasks', {
   priorityIdx: index('tasks_priority_idx').on(table.priority),
 }));
 
+
+
 // Invitations table
 export const invitations = pgTable('invitations', {
   id: uuid('id').primaryKey().defaultRandom(),
