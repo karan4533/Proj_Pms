@@ -18,7 +18,7 @@ interface KanbanCardProps {
 export const KanbanCard = ({ task }: KanbanCardProps) => {
   // Helper function to format date and time
   const formatDateTime = (dateString: string | undefined) => {
-    if (!dateString) return null;
+    if (!dateString) return '';
     const date = new Date(dateString);
     return date.toLocaleString('en-US', {
       month: 'short',
@@ -31,11 +31,11 @@ export const KanbanCard = ({ task }: KanbanCardProps) => {
 
   // Helper function to determine due date status
   const getDueDateStatus = (dueDate: string | undefined) => {
-    if (!dueDate) return 'none';
-    
-    const due = new Date(dueDate);
+    if (!dueDate) return 'normal';
     const now = new Date();
-    const diffDays = Math.ceil((due.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+    const due = new Date(dueDate);
+    const diffTime = due.getTime() - now.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     
     if (diffDays < 0) return 'overdue';
     if (diffDays <= 1) return 'urgent';
@@ -47,13 +47,43 @@ export const KanbanCard = ({ task }: KanbanCardProps) => {
   const labels = task.labels ? (Array.isArray(task.labels) ? task.labels : JSON.parse(task.labels || '[]')) : [];
   const dueDateStatus = getDueDateStatus(task.dueDate);
 
+  const getCardClassName = () => {
+    let baseClass = "bg-white p-3 mb-2 rounded-lg shadow-sm border space-y-3 hover:shadow-md transition-shadow";
+    
+    if (dueDateStatus === 'overdue') {
+      return `${baseClass} border-red-300 bg-red-50`;
+    } else if (dueDateStatus === 'urgent') {
+      return `${baseClass} border-orange-300 bg-orange-50`;
+    } else if (dueDateStatus === 'soon') {
+      return `${baseClass} border-yellow-300 bg-yellow-50`;
+    }
+    return `${baseClass} border-gray-100`;
+  };
+
+  const getDueDateClassName = () => {
+    if (dueDateStatus === 'overdue') {
+      return 'flex items-center gap-x-1.5 text-xs text-red-600 font-medium';
+    } else if (dueDateStatus === 'urgent') {
+      return 'flex items-center gap-x-1.5 text-xs text-orange-600 font-medium';
+    } else if (dueDateStatus === 'soon') {
+      return 'flex items-center gap-x-1.5 text-xs text-yellow-600 font-medium';
+    }
+    return 'flex items-center gap-x-1.5 text-xs text-gray-600';
+  };
+
+  const getIconClassName = () => {
+    if (dueDateStatus === 'overdue') {
+      return 'size-3 text-red-500';
+    } else if (dueDateStatus === 'urgent') {
+      return 'size-3 text-orange-500';
+    } else if (dueDateStatus === 'soon') {
+      return 'size-3 text-yellow-500';
+    }
+    return 'size-3 text-gray-400';
+  };
+
   return (
-    <div className={`bg-white p-3 mb-2 rounded-lg shadow-sm border space-y-3 hover:shadow-md transition-shadow ${
-      dueDateStatus === 'overdue' ? 'border-red-300 bg-red-50' : 
-      dueDateStatus === 'urgent' ? 'border-orange-300 bg-orange-50' : 
-      dueDateStatus === 'soon' ? 'border-yellow-300 bg-yellow-50' : 
-      'border-gray-100'
-    }`}>
+    <div className={getCardClassName()}>
       {/* Header with Issue ID, Priority, and Actions */}
       <div className="flex items-start justify-between gap-x-2">
         <div className="flex items-center gap-x-2">
@@ -72,34 +102,30 @@ export const KanbanCard = ({ task }: KanbanCardProps) => {
         </TaskActions>
       </div>
 
-      {/* Task Summary (main content) */}
-      <div className="space-y-1">
-        <p className="text-sm font-medium line-clamp-2 text-gray-900">{task.summary}</p>
-        <div className="flex items-center gap-x-1 text-xs text-gray-500">
-          <span>{task.issueType}</span>
-          {task.projectName && (
-            <>
-              <div className="size-1 rounded-full bg-gray-300" />
-              <span>{task.projectName}</span>
-            </>
-          )}
+      {/* Project Name Badge */}
+      {task.projectName && (
+        <div className="flex items-center gap-x-1">
+          <Badge variant="outline" className="text-xs px-2 py-1 bg-blue-50 text-blue-700 border-blue-200">
+            {task.projectName}
+          </Badge>
         </div>
-      </div>
+      )}
 
-      <DottedSeparator />
+      {/* Task Title */}
+      <p className="text-sm font-medium leading-relaxed">{task.summary}</p>
 
       {/* Labels */}
       {labels.length > 0 && (
-        <div className="flex flex-wrap gap-1">
-          <TagIcon className="size-3 text-gray-400 mt-0.5 shrink-0" />
-          <div className="flex flex-wrap gap-1">
+        <div className="flex items-center gap-1 flex-wrap">
+          <TagIcon className="size-3 text-gray-400" />
+          <div className="flex gap-1 flex-wrap">
             {labels.slice(0, 3).map((label: string, index: number) => (
-              <Badge key={index} variant="outline" className="text-xs px-1.5 py-0 bg-blue-50 text-blue-700 border-blue-200">
+              <Badge key={index} variant="outline" className="text-xs px-1.5 py-0.5 bg-gray-50">
                 {label}
               </Badge>
             ))}
             {labels.length > 3 && (
-              <Badge variant="outline" className="text-xs px-1.5 py-0 bg-gray-50">
+              <Badge variant="outline" className="text-xs px-1.5 py-0.5 bg-gray-100">
                 +{labels.length - 3}
               </Badge>
             )}
@@ -107,19 +133,23 @@ export const KanbanCard = ({ task }: KanbanCardProps) => {
         </div>
       )}
 
-      {/* Assignee and Reporter */}
+      {/* Assignee */}
       <div className="flex items-center gap-x-2">
         {task.assignee ? (
           <div className="flex items-center gap-x-1.5">
-            <MemberAvatar
-              name={task.assignee?.name || ''}
-              fallbackClassName="text-[10px]"
+            <MemberAvatar 
+              name={task.assignee.name}
+              className="size-6"
             />
-            <span className="text-xs text-gray-600 truncate">{task.assignee?.name}</span>
+            <div className="flex flex-col">
+              <p className="text-xs font-medium">{task.assignee.name}</p>
+            </div>
           </div>
         ) : (
-          <div className="flex items-center gap-x-1.5 text-gray-400">
-            <UserIcon className="size-4" />
+          <div className="flex items-center gap-x-1.5">
+            <div className="size-6 rounded-full bg-neutral-200 flex items-center justify-center">
+              <UserIcon className="size-3 text-neutral-400" />
+            </div>
             <span className="text-xs">Unassigned</span>
           </div>
         )}
@@ -127,18 +157,8 @@ export const KanbanCard = ({ task }: KanbanCardProps) => {
 
       {/* Due Date */}
       {task.dueDate && (
-        <div className={`flex items-center gap-x-1.5 text-xs ${
-          dueDateStatus === 'overdue' ? 'text-red-600 font-medium' :
-          dueDateStatus === 'urgent' ? 'text-orange-600 font-medium' :
-          dueDateStatus === 'soon' ? 'text-yellow-600 font-medium' :
-          'text-gray-600'
-        }`}>
-          <CalendarIcon className={`size-3 ${
-            dueDateStatus === 'overdue' ? 'text-red-500' :
-            dueDateStatus === 'urgent' ? 'text-orange-500' :
-            dueDateStatus === 'soon' ? 'text-yellow-500' :
-            'text-gray-400'
-          }`} />
+        <div className={getDueDateClassName()}>
+          <CalendarIcon className={getIconClassName()} />
           <TaskDate value={task.dueDate || ""} className="text-xs" />
           {dueDateStatus === 'overdue' && <Badge variant="destructive" className="text-xs px-1 py-0">Overdue</Badge>}
           {dueDateStatus === 'urgent' && <Badge variant="destructive" className="text-xs px-1 py-0 bg-orange-500">Due Soon</Badge>}
@@ -153,33 +173,35 @@ export const KanbanCard = ({ task }: KanbanCardProps) => {
         </div>
       )}
 
-      {/* Project Info */}
+      {/* Project Avatar */}
       {task.project && (
         <div className="flex items-center gap-x-1.5">
-          <ProjectAvatar
-            name={task.project?.name || ''}
-            image={task.project?.imageUrl || undefined}
-            fallbackClassName="text-[10px]"
+          <ProjectAvatar 
+            name={task.project.name}
+            image={task.project.imageUrl ?? undefined}
+            className="size-5"
           />
-          <span className="text-xs font-medium text-gray-700">{task.project?.name}</span>
+          <span className="text-xs text-muted-foreground">{task.project.name}</span>
         </div>
       )}
 
+      <DottedSeparator className="my-2" />
+
       {/* Timestamps */}
-      <div className="pt-1 border-t border-gray-100 space-y-1">
-        <div className="flex items-center gap-x-1.5 text-xs text-gray-500">
+      <div className="flex flex-col gap-y-1 text-xs text-muted-foreground">
+        <div className="flex items-center gap-x-1.5">
           <Clock className="size-3" />
           <span>Created: {formatDateTime(task.created)}</span>
         </div>
         {task.updated !== task.created && (
-          <div className="flex items-center gap-x-1.5 text-xs text-gray-500">
+          <div className="flex items-center gap-x-1.5">
             <Clock className="size-3" />
             <span>Updated: {formatDateTime(task.updated)}</span>
           </div>
         )}
         {task.resolved && (
-          <div className="flex items-center gap-x-1.5 text-xs text-green-600">
-            <CheckCircleIcon className="size-3" />
+          <div className="flex items-center gap-x-1.5">
+            <CheckCircleIcon className="size-3 text-green-500" />
             <span>Resolved: {formatDateTime(task.resolved)}</span>
           </div>
         )}

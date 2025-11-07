@@ -5,7 +5,7 @@ import { useWorkspaceId } from "@/features/workspaces/hooks/use-workspace-id";
 import { useGetTasks } from "@/features/tasks/api/use-get-tasks";
 import { BoardKanban } from "@/features/tasks/components/board-kanban";
 import { useBulkUpdateTasks } from "@/features/tasks/api/use-bulk-update-tasks";
-import { TaskStatus } from "@/features/tasks/types";
+import { TaskStatus, IssueType, Resolution } from "@/features/tasks/types";
 import { useTaskFilters } from "@/features/tasks/hooks/use-task-filters";
 import { PageError } from "@/components/page-error";
 import { PageLoader } from "@/components/page-loader";
@@ -56,11 +56,18 @@ export const BoardView = () => {
     status: task.status as TaskStatus,
     description: task.description ?? undefined,
     priority: task.priority as any,
-    importance: task.importance as any,
-    category: task.category ?? undefined,
+    issueType: (task.issueType as IssueType) || IssueType.TASK,
+    resolution: (task.resolution && task.resolution !== null) ? (task.resolution as Resolution) : undefined,
+    assigneeId: task.assigneeId ?? undefined,
+    reporterId: task.reporterId ?? undefined,
+    creatorId: task.creatorId ?? undefined,
+    projectId: task.projectId ?? undefined,
+    workspaceId: task.workspaceId || workspaceId,
+    resolved: task.resolved ?? undefined,
+    dueDate: task.dueDate ?? undefined,
+    labels: task.labels ? (Array.isArray(task.labels) ? task.labels as string[] : []) : undefined,
     estimatedHours: task.estimatedHours ?? undefined,
-    actualHours: task.actualHours ?? undefined,
-    tags: task.tags as string[] ?? undefined,
+    actualHours: task.actualHours ?? 0,
   })) || [];
 
   return (
