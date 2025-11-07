@@ -14,7 +14,12 @@ function makeQueryClient() {
       queries: {
         // With SSR, we usually want to set some default staleTime
         // above 0 to avoid refetching immediately on the client
-        staleTime: 60 * 1000,
+        staleTime: 5 * 60 * 1000, // 5 minutes - cache API responses
+        gcTime: 10 * 60 * 1000, // 10 minutes - garbage collect unused queries
+        refetchOnWindowFocus: false, // Don't refetch when window regains focus
+        refetchOnMount: false, // Don't refetch when component mounts if data exists
+        retry: 2, // Retry failed requests 2 times
+        retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
       },
     },
   });

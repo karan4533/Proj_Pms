@@ -212,8 +212,8 @@ const app = new Hono()
       .where(
         and(
           eq(tasks.projectId, projectId),
-          gte(tasks.createdAt, thisMonthStart),
-          lte(tasks.createdAt, thisMonthEnd)
+          gte(tasks.created, thisMonthStart),
+          lte(tasks.created, thisMonthEnd)
         )
       );
 
@@ -223,8 +223,8 @@ const app = new Hono()
       .where(
         and(
           eq(tasks.projectId, projectId),
-          gte(tasks.createdAt, lastMonthStart),
-          lte(tasks.createdAt, lastMonthEnd)
+          gte(tasks.created, lastMonthStart),
+          lte(tasks.created, lastMonthEnd)
         )
       );
 
@@ -238,8 +238,8 @@ const app = new Hono()
         and(
           eq(tasks.projectId, projectId),
           eq(tasks.assigneeId, user.id),
-          gte(tasks.createdAt, thisMonthStart),
-          lte(tasks.createdAt, thisMonthEnd)
+          gte(tasks.created, thisMonthStart),
+          lte(tasks.created, thisMonthEnd)
         )
       );
 
@@ -250,8 +250,8 @@ const app = new Hono()
         and(
           eq(tasks.projectId, projectId),
           eq(tasks.assigneeId, user.id),
-          gte(tasks.createdAt, lastMonthStart),
-          lte(tasks.createdAt, lastMonthEnd)
+          gte(tasks.created, lastMonthStart),
+          lte(tasks.created, lastMonthEnd)
         )
       );
 
@@ -265,8 +265,8 @@ const app = new Hono()
         and(
           eq(tasks.projectId, projectId),
           eq(tasks.status, TaskStatus.DONE),
-          gte(tasks.createdAt, thisMonthStart),
-          lte(tasks.createdAt, thisMonthEnd)
+          gte(tasks.created, thisMonthStart),
+          lte(tasks.created, thisMonthEnd)
         )
       );
 
@@ -277,8 +277,8 @@ const app = new Hono()
         and(
           eq(tasks.projectId, projectId),
           eq(tasks.status, TaskStatus.DONE),
-          gte(tasks.createdAt, lastMonthStart),
-          lte(tasks.createdAt, lastMonthEnd)
+          gte(tasks.created, lastMonthStart),
+          lte(tasks.created, lastMonthEnd)
         )
       );
 
@@ -292,8 +292,8 @@ const app = new Hono()
         and(
           eq(tasks.projectId, projectId),
           lte(tasks.dueDate, now),
-          gte(tasks.createdAt, thisMonthStart),
-          lte(tasks.createdAt, thisMonthEnd)
+          gte(tasks.created, thisMonthStart),
+          lte(tasks.created, thisMonthEnd)
         )
       );
 
@@ -304,8 +304,8 @@ const app = new Hono()
         and(
           eq(tasks.projectId, projectId),
           lte(tasks.dueDate, lastMonthEnd),
-          gte(tasks.createdAt, lastMonthStart),
-          lte(tasks.createdAt, lastMonthEnd)
+          gte(tasks.created, lastMonthStart),
+          lte(tasks.created, lastMonthEnd)
         )
       );
 

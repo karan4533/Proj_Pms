@@ -62,7 +62,23 @@ export const ExcelUploadCard = () => {
 
   const isValidCsvFile = (file: File): boolean => {
     const validTypes = ['text/csv'];
-    return validTypes.includes(file.type) || file.name.match(/\.csv$/i) !== null;
+    const isValidType = validTypes.includes(file.type) || file.name.match(/\.csv$/i) !== null;
+    
+    // Increase file size limit from 10MB to 100MB
+    const maxSizeInBytes = 100 * 1024 * 1024; // 100MB
+    const isValidSize = file.size <= maxSizeInBytes;
+    
+    if (!isValidType) {
+      alert('Please upload a CSV file only.');
+      return false;
+    }
+    
+    if (!isValidSize) {
+      alert(`File size too large. Please upload a file smaller than 100MB. Current size: ${formatFileSize(file.size)}`);
+      return false;
+    }
+    
+    return true;
   };
 
   const formatFileSize = (bytes: number): string => {
@@ -113,7 +129,7 @@ export const ExcelUploadCard = () => {
         <CardDescription>
           Upload a CSV file to create multiple tasks at once. Expected columns: Epic, Story, Planned Start, Planned Completion, Responsibility.
           <br />
-          <Badge variant="outline" className="mt-2">CSV format only</Badge>
+          <Badge variant="outline" className="mt-2">CSV format only - Up to 100MB</Badge>
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -180,7 +196,7 @@ export const ExcelUploadCard = () => {
                   or drag and drop
                 </div>
                 <p className="text-xs text-gray-500">
-                  CSV files only, up to 10MB
+                  CSV files only, up to 100MB
                 </p>
               </div>
             ) : (

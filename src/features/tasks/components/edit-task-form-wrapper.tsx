@@ -8,7 +8,7 @@ import { useWorkspaceId } from "@/features/workspaces/hooks/use-workspace-id";
 import { EditTaskForm } from "./edit-task-form";
 
 import { useGetTask } from "../api/use-get-task";
-import { TaskStatus, TaskPriority, TaskImportance } from "../types";
+import { TaskStatus, TaskPriority, IssueType, Resolution } from "../types";
 
 interface EditTaskFormWrapperProps {
   onCancel: () => void;
@@ -53,7 +53,7 @@ export const EditTaskFormWrapper = ({
     isLoadingProjects, 
     isLoadingMembers,
     initialValues: !!initialValues,
-    taskData: initialValues ? { id: initialValues.id, name: initialValues.name } : null
+    taskData: initialValues ? { id: initialValues.id, summary: initialValues.summary } : null
   });
 
   if (isLoading) {
@@ -83,13 +83,21 @@ export const EditTaskFormWrapper = ({
     ...initialValues,
     status: initialValues.status as TaskStatus,
     priority: (initialValues.priority as TaskPriority) || TaskPriority.MEDIUM,
-    importance: (initialValues.importance as TaskImportance) || TaskImportance.MEDIUM,
+    issueType: (initialValues.issueType as IssueType) || IssueType.TASK,
+    resolution: initialValues.resolution ? (initialValues.resolution as Resolution) : undefined,
+    assigneeId: initialValues.assigneeId || undefined,
+    reporterId: initialValues.reporterId || undefined,
+    creatorId: initialValues.creatorId || undefined,
+    projectId: initialValues.projectId || undefined,
+    resolved: initialValues.resolved || undefined,
+    labels: Array.isArray(initialValues.labels) ? (initialValues.labels as string[]) : undefined,
     description: initialValues.description || undefined,
-    category: initialValues.category || undefined,
-    tags: Array.isArray(initialValues.tags) ? (initialValues.tags as string[]) : undefined,
     estimatedHours: initialValues.estimatedHours || undefined,
-    actualHours: initialValues.actualHours || undefined,
-    dueDate: initialValues.dueDate || new Date().toISOString(),
+    actualHours: initialValues.actualHours || 0,
+    dueDate: initialValues.dueDate || undefined,
+    workspaceId: initialValues.workspaceId || "",
+    assignee: initialValues.assignee || undefined,
+    project: initialValues.project || undefined,
   };
 
   return (

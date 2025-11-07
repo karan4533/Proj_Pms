@@ -87,31 +87,51 @@ export const projects = pgTable('projects', {
   workspaceIdx: index('projects_workspace_idx').on(table.workspaceId),
 }));
 
-// Tasks table
+// Tasks table - Updated structure to match the new requirements
 export const tasks = pgTable('tasks', {
   id: uuid('id').primaryKey().defaultRandom(),
-  name: text('name').notNull(),
+  summary: text('summary').notNull(), // Main task title
+  issueId: text('issue_id').notNull().unique(), // e.g., VECV-601
+  issueType: text('issue_type').notNull().default('Task'), // Task, Bug, Epic, Story, etc.
+  status: text('status').notNull().default('To Do'), // To Do, In Progress, Done, etc.
+  projectName: text('project_name').notNull(), // e.g., VECV-SPINE
+  priority: text('priority').default('Medium'), // High, Medium, Low
+  resolution: text('resolution'), // Done, Won't Fix, Duplicate, etc.
+  assigneeId: uuid('assignee_id').references(() => users.id),
+  reporterId: uuid('reporter_id').references(() => users.id),
+  creatorId: uuid('creator_id').references(() => users.id),
+  created: timestamp('created').defaultNow().notNull(),
+  updated: timestamp('updated').defaultNow().notNull(),
+  resolved: timestamp('resolved'),
+  dueDate: timestamp('due_date'),
+  labels: jsonb('labels'), // Array of labels as JSON
   description: text('description'),
-  status: text('status').notNull().default('TODO'),
-  priority: text('priority').default('MEDIUM'),
-  importance: text('importance').default('MEDIUM'),
-  category: text('category'),
+  
+  // Keep existing relationships
+  projectId: uuid('project_id').references(() => projects.id, { onDelete: 'cascade' }),
+  workspaceId: uuid('workspace_id').references(() => workspaces.id, { onDelete: 'cascade' }),
+  
+  // Additional useful fields
   estimatedHours: integer('estimated_hours'),
   actualHours: integer('actual_hours').default(0),
-  tags: jsonb('tags'),
   position: integer('position').notNull().default(1000),
-  dueDate: timestamp('due_date').notNull(),
-  assigneeId: uuid('assignee_id').notNull().references(() => users.id),
-  projectId: uuid('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
-  workspaceId: uuid('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
-  updatedAt: timestamp('updated_at').defaultNow().notNull(),
 }, (table) => ({
+  issueIdIdx: index('tasks_issue_id_idx').on(table.issueId),
   assigneeIdx: index('tasks_assignee_idx').on(table.assigneeId),
+  reporterIdx: index('tasks_reporter_idx').on(table.reporterId),
+  creatorIdx: index('tasks_creator_idx').on(table.creatorId),
   projectIdx: index('tasks_project_idx').on(table.projectId),
   workspaceIdx: index('tasks_workspace_idx').on(table.workspaceId),
   statusIdx: index('tasks_status_idx').on(table.status),
   priorityIdx: index('tasks_priority_idx').on(table.priority),
+  projectNameIdx: index('tasks_project_name_idx').on(table.projectName),
+  issueTypeIdx: index('tasks_issue_type_idx').on(table.issueType),
+  dueDateIdx: index('tasks_due_date_idx').on(table.dueDate),
+  // Composite indexes for analytics performance
+  workspaceCreatedIdx: index('tasks_workspace_created_idx').on(table.workspaceId, table.created),
+  workspaceStatusCreatedIdx: index('tasks_workspace_status_created_idx').on(table.workspaceId, table.status, table.created),
+  workspaceAssigneeCreatedIdx: index('tasks_workspace_assignee_created_idx').on(table.workspaceId, table.assigneeId, table.created),
+  workspaceDueDateCreatedIdx: index('tasks_workspace_duedate_created_idx').on(table.workspaceId, table.dueDate, table.created),
 }));
 
 

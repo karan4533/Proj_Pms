@@ -45,9 +45,28 @@ export const DataKanban = ({ data, onChange }: DataKanbanProps) => {
     });
 
     Object.keys(initialTasks).forEach((status) => {
-      initialTasks[status as TaskStatus].sort(
-        (a, b) => a.position - b.position
-      );
+      initialTasks[status as TaskStatus].sort((a, b) => {
+        // Special sorting for TODO column: prioritize by due date
+        if (status === TaskStatus.TODO) {
+          // Tasks with due dates come first
+          const aHasDueDate = a.dueDate && a.dueDate.trim() !== '';
+          const bHasDueDate = b.dueDate && b.dueDate.trim() !== '';
+          
+          if (aHasDueDate && !bHasDueDate) return -1;
+          if (!aHasDueDate && bHasDueDate) return 1;
+          
+          // If both have due dates, sort by due date (earliest first)
+          if (aHasDueDate && bHasDueDate) {
+            const dateA = new Date(a.dueDate!);
+            const dateB = new Date(b.dueDate!);
+            const dateDiff = dateA.getTime() - dateB.getTime();
+            if (dateDiff !== 0) return dateDiff;
+          }
+        }
+        
+        // Fallback to position sorting for all other cases
+        return a.position - b.position;
+      });
     });
 
     return initialTasks;
@@ -67,7 +86,28 @@ export const DataKanban = ({ data, onChange }: DataKanbanProps) => {
     });
 
     Object.keys(newTasks).forEach((status) => {
-      newTasks[status as TaskStatus].sort((a, b) => a.position - b.position);
+      newTasks[status as TaskStatus].sort((a, b) => {
+        // Special sorting for TODO column: prioritize by due date
+        if (status === TaskStatus.TODO) {
+          // Tasks with due dates come first
+          const aHasDueDate = a.dueDate && a.dueDate.trim() !== '';
+          const bHasDueDate = b.dueDate && b.dueDate.trim() !== '';
+          
+          if (aHasDueDate && !bHasDueDate) return -1;
+          if (!aHasDueDate && bHasDueDate) return 1;
+          
+          // If both have due dates, sort by due date (earliest first)
+          if (aHasDueDate && bHasDueDate) {
+            const dateA = new Date(a.dueDate!);
+            const dateB = new Date(b.dueDate!);
+            const dateDiff = dateA.getTime() - dateB.getTime();
+            if (dateDiff !== 0) return dateDiff;
+          }
+        }
+        
+        // Fallback to position sorting for all other cases
+        return a.position - b.position;
+      });
     });
 
     setTasks(newTasks);

@@ -56,7 +56,7 @@ export const TaskBreadcrumbs = ({ project, task }: TaskBreadcrumbsProps) => {
         </p>
       </Link>
       <ChevronRightIcon className="size-4 lg:size-5 text-muted-foreground" />
-      <p className="text-sm lg:text-lg font-semibold">{task.name}</p>
+      <p className="text-sm lg:text-lg font-semibold">{task.summary}</p>
       <Button
         onClick={handleDeleteTask}
         disabled={isPending}

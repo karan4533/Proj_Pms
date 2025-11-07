@@ -9,7 +9,7 @@ import { tasks, projects, users } from "@/db/schema";
 import { getMember } from "@/features/members/utils";
 
 import { createTaskSchema } from "../schemas";
-import { TaskStatus, TaskPriority, TaskImportance } from "../types";
+import { TaskStatus, TaskPriority, IssueType, Resolution } from "../types";
 
 const app = new Hono()
   .delete("/:taskId", sessionMiddleware, async (c) => {
@@ -27,7 +27,7 @@ const app = new Hono()
     }
 
     const member = await getMember({
-      workspaceId: task.workspaceId,
+      workspaceId: task.workspaceId!,
       userId: user.id,
     });
 
@@ -51,11 +51,13 @@ const app = new Hono()
         status: z.nativeEnum(TaskStatus).nullish(),
         search: z.string().nullish(),
         dueDate: z.string().nullish(),
+        limit: z.string().optional().transform(val => val ? parseInt(val) : 100),
+        offset: z.string().optional().transform(val => val ? parseInt(val) : 0),
       })
     ),
     async (c) => {
       const user = c.get("user");
-      const { workspaceId, projectId, assigneeId, status, search, dueDate } =
+      const { workspaceId, projectId, assigneeId, status, search, dueDate, limit, offset } =
         c.req.valid("query");
 
       const member = await getMember({
@@ -89,7 +91,7 @@ const app = new Hono()
       if (search) {
         conditions.push(
           or(
-            like(tasks.name, `%${search}%`),
+            like(tasks.summary, `%${search}%`),
             like(tasks.description, `%${search}%`)
           )!
         );
@@ -99,11 +101,13 @@ const app = new Hono()
         .select()
         .from(tasks)
         .where(and(...conditions))
-        .orderBy(desc(tasks.createdAt));
+        .orderBy(desc(tasks.created))
+        .limit(Math.min(limit || 100, 500)) // Max 500 tasks per request
+        .offset(offset || 0);
 
-      // Get unique assignee and project IDs
-      const assigneeIds = Array.from(new Set(taskList.map((t) => t.assigneeId)));
-      const projectIds = Array.from(new Set(taskList.map((t) => t.projectId)));
+      // Get unique assignee and project IDs (filter out nulls)
+      const assigneeIds = Array.from(new Set(taskList.map((t) => t.assigneeId).filter(Boolean))) as string[];
+      const projectIds = Array.from(new Set(taskList.map((t) => t.projectId).filter(Boolean))) as string[];
 
       // Fetch assignees
       const assignees = assigneeIds.length > 0
@@ -137,17 +141,22 @@ const app = new Hono()
     async (c) => {
       const user = c.get("user");
       const {
-        name,
+        summary,
+        issueId,
+        issueType,
         status,
+        projectName,
         workspaceId,
         projectId,
         dueDate,
         assigneeId,
+        reporterId,
+        creatorId,
         description,
         priority,
-        importance,
-        category,
+        resolution,
         estimatedHours,
+        labels,
       } = c.req.valid("json");
 
       const member = await getMember({
@@ -179,17 +188,23 @@ const app = new Hono()
       const [task] = await db
         .insert(tasks)
         .values({
-          name,
-          description,
+          summary,
+          issueId,
+          issueType: issueType || "Task",
           status,
-          priority,
-          importance,
-          category,
-          estimatedHours,
-          workspaceId,
-          projectId,
-          dueDate: new Date(dueDate),
+          projectName,
+          priority: priority || "Medium",
+          resolution,
           assigneeId,
+          reporterId,
+          creatorId: creatorId || user.id,
+          description,
+          projectId,
+          workspaceId,
+          dueDate: dueDate ? new Date(dueDate) : null,
+          estimatedHours,
+          actualHours: 0,
+          labels: labels ? JSON.stringify(labels) : null,
           position: newPosition,
         })
         .returning();
@@ -217,7 +232,7 @@ const app = new Hono()
       }
 
       const member = await getMember({
-        workspaceId: existingTask.workspaceId,
+        workspaceId: existingTask.workspaceId!,
         userId: user.id,
       });
 
@@ -230,7 +245,7 @@ const app = new Hono()
         .set({
           ...updates,
           dueDate: updates.dueDate ? new Date(updates.dueDate) : existingTask.dueDate,
-          updatedAt: new Date(),
+          updated: new Date(),
         })
         .where(eq(tasks.id, taskId))
         .returning();
@@ -245,22 +260,27 @@ const app = new Hono()
     const [task] = await db
       .select({
         id: tasks.id,
-        name: tasks.name,
-        description: tasks.description,
+        summary: tasks.summary,
+        issueId: tasks.issueId,
+        issueType: tasks.issueType,
         status: tasks.status,
+        projectName: tasks.projectName,
         priority: tasks.priority,
-        importance: tasks.importance,
-        category: tasks.category,
-        estimatedHours: tasks.estimatedHours,
-        actualHours: tasks.actualHours,
-        tags: tasks.tags,
-        position: tasks.position,
-        dueDate: tasks.dueDate,
+        resolution: tasks.resolution,
         assigneeId: tasks.assigneeId,
+        reporterId: tasks.reporterId,
+        creatorId: tasks.creatorId,
+        created: tasks.created,
+        updated: tasks.updated,
+        resolved: tasks.resolved,
+        dueDate: tasks.dueDate,
+        labels: tasks.labels,
+        description: tasks.description,
         projectId: tasks.projectId,
         workspaceId: tasks.workspaceId,
-        createdAt: tasks.createdAt,
-        updatedAt: tasks.updatedAt,
+        estimatedHours: tasks.estimatedHours,
+        actualHours: tasks.actualHours,
+        position: tasks.position,
         assignee: {
           id: users.id,
           name: users.name,
@@ -273,8 +293,8 @@ const app = new Hono()
         },
       })
       .from(tasks)
-      .innerJoin(users, eq(tasks.assigneeId, users.id))
-      .innerJoin(projects, eq(tasks.projectId, projects.id))
+      .leftJoin(users, eq(tasks.assigneeId, users.id))
+      .leftJoin(projects, eq(tasks.projectId, projects.id))
       .where(eq(tasks.id, taskId))
       .limit(1);
 
@@ -283,7 +303,7 @@ const app = new Hono()
     }
 
     const member = await getMember({
-      workspaceId: task.workspaceId,
+      workspaceId: task.workspaceId!,
       userId: user.id,
     });
 
@@ -324,7 +344,7 @@ const app = new Hono()
       }
 
       // Verify user has access to workspace
-      const workspaceIds = Array.from(new Set(existingTasks.map((t) => t.workspaceId)));
+      const workspaceIds = Array.from(new Set(existingTasks.map((t) => t.workspaceId).filter(Boolean))) as string[];
       
       for (const workspaceId of workspaceIds) {
         const member = await getMember({
@@ -337,21 +357,34 @@ const app = new Hono()
         }
       }
 
-      // Update all tasks
-      const updatedTasks = [];
-      for (const taskUpdate of tasksToUpdate) {
-        const [updated] = await db
-          .update(tasks)
-          .set({
-            status: taskUpdate.status,
-            position: taskUpdate.position,
-            updatedAt: new Date(),
-          })
-          .where(eq(tasks.id, taskUpdate.id))
-          .returning();
+      // Update all tasks using batch transaction for better performance
+      const updatedTasks = await db.transaction(async (tx) => {
+        const results = [];
         
-        updatedTasks.push(updated);
-      }
+        // Process updates in smaller batches to avoid overwhelming database
+        const batchSize = 10;
+        for (let i = 0; i < tasksToUpdate.length; i += batchSize) {
+          const batch = tasksToUpdate.slice(i, i + batchSize);
+          
+          const batchPromises = batch.map(async (taskUpdate) => {
+            const [updated] = await tx
+              .update(tasks)
+              .set({
+                status: taskUpdate.status,
+                position: taskUpdate.position,
+                updated: new Date(),
+              })
+              .where(eq(tasks.id, taskUpdate.id))
+              .returning();
+            return updated;
+          });
+          
+          const batchResults = await Promise.all(batchPromises);
+          results.push(...batchResults);
+        }
+        
+        return results;
+      });
 
       return c.json({ data: updatedTasks });
     }
@@ -370,6 +403,14 @@ const app = new Hono()
 
         if (!file) {
           return c.json({ error: "No file uploaded" }, 400);
+        }
+
+        // Check file size limit (100MB)
+        const maxSizeInBytes = 100 * 1024 * 1024; // 100MB
+        if (file.size > maxSizeInBytes) {
+          return c.json({ 
+            error: `File size too large. Maximum allowed size is 100MB. Your file is ${(file.size / (1024 * 1024)).toFixed(2)}MB.` 
+          }, 400);
         }
 
         if (!workspaceId || !projectId) {
@@ -402,12 +443,36 @@ const app = new Hono()
         let rowsData: string[][] = [];
         
         if (fileName.endsWith('.csv')) {
-          // Handle CSV files
+          // Handle CSV files - improved parsing for large files
+          console.log(`Processing CSV file: ${file.name}, Size: ${(file.size / (1024 * 1024)).toFixed(2)}MB`);
+          
           const fileContent = await file.text();
           const lines = fileContent.split('\n').filter(line => line.trim());
-          rowsData = lines.map(line => 
-            line.split(',').map(cell => cell.trim().replace(/"/g, ''))
-          );
+          
+          console.log(`Found ${lines.length} lines in CSV file`);
+          
+          // Improved CSV parsing that handles commas within quotes
+          rowsData = lines.map(line => {
+            const result = [];
+            let current = '';
+            let inQuotes = false;
+            
+            for (let i = 0; i < line.length; i++) {
+              const char = line[i];
+              
+              if (char === '"') {
+                inQuotes = !inQuotes;
+              } else if (char === ',' && !inQuotes) {
+                result.push(current.trim());
+                current = '';
+              } else {
+                current += char;
+              }
+            }
+            result.push(current.trim());
+            
+            return result.map(cell => cell.replace(/^"|"$/g, '').trim());
+          });
         } else if (fileName.endsWith('.xlsx') || fileName.endsWith('.xls')) {
           // For Excel files, return error for now since we need proper Excel parsing library
           return c.json({ 
@@ -501,17 +566,23 @@ const app = new Hono()
           let assigneeId = assigneeMap.get(responsibility) || user.id;
           
           const taskData = {
-            name: story,
-            description: `Epic: ${epic}\nPlanned Start: ${plannedStart}`,
+            summary: story,
+            issueId: `TASK-${Date.now()}-${i}`, // Generate unique issue ID
+            issueType: "Task",
             status: TaskStatus.TODO,
+            projectName: project.name,
             priority: TaskPriority.MEDIUM,
-            importance: TaskImportance.MEDIUM,
-            dueDate: parseDate(plannedCompletion),
-            category: epic,
-            estimatedHours: null,
-            workspaceId,
-            projectId,
+            resolution: null,
             assigneeId,
+            reporterId: user.id,
+            creatorId: user.id,
+            description: `Epic: ${epic}\nPlanned Start: ${plannedStart}`,
+            projectId,
+            workspaceId,
+            dueDate: parseDate(plannedCompletion),
+            estimatedHours: null,
+            actualHours: 0,
+            labels: epic ? JSON.stringify([epic]) : null,
             position: 1000 + i,
           };
 

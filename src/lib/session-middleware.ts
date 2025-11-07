@@ -25,33 +25,41 @@ export const sessionMiddleware = createMiddleware<AdditionalContext>(
       return c.json({ error: "Unauthorized" }, 401);
     }
 
-    // Get session from PostgreSQL
-    const [session] = await db
-      .select()
+    // Get session and user in a single optimized query with JOIN
+    const [result] = await db
+      .select({
+        session: {
+          sessionToken: sessions.sessionToken,
+          expires: sessions.expires,
+          userId: sessions.userId,
+        },
+        user: {
+          id: users.id,
+          name: users.name,
+          email: users.email,
+          emailVerified: users.emailVerified,
+          image: users.image,
+          password: users.password,
+          createdAt: users.createdAt,
+          updatedAt: users.updatedAt,
+        }
+      })
       .from(sessions)
+      .innerJoin(users, eq(sessions.userId, users.id))
       .where(eq(sessions.sessionToken, sessionToken))
       .limit(1);
 
-    if (!session) {
+    if (!result) {
       return c.json({ error: "Unauthorized" }, 401);
     }
+
+    const { session, user } = result;
 
     // Check if session is expired
     if (session.expires < new Date()) {
       // Delete expired session
       await db.delete(sessions).where(eq(sessions.sessionToken, sessionToken));
       return c.json({ error: "Session expired" }, 401);
-    }
-
-    // Get user from PostgreSQL
-    const [user] = await db
-      .select()
-      .from(users)
-      .where(eq(users.id, session.userId))
-      .limit(1);
-
-    if (!user) {
-      return c.json({ error: "User not found" }, 401);
     }
 
     c.set("user", user);

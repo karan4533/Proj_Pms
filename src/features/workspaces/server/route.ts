@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { eq, desc, inArray, and, gte, lte } from "drizzle-orm";
+import { eq, desc, inArray, and, gte, lte, count, sql } from "drizzle-orm";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 
@@ -288,121 +288,121 @@ const app = new Hono()
     const lastMonthStart = startOfMonth(subMonths(now, 1));
     const lastMonthEnd = endOfMonth(subMonths(now, 1));
 
-    // Get this month's tasks
-    const thisMonthTasks = await db
-      .select()
+    // Get this month's tasks count
+    const [thisMonthTasksResult] = await db
+      .select({ count: count() })
       .from(tasks)
       .where(
         and(
           eq(tasks.workspaceId, workspaceId),
-          gte(tasks.createdAt, thisMonthStart),
-          lte(tasks.createdAt, thisMonthEnd)
+          gte(tasks.created, thisMonthStart),
+          lte(tasks.created, thisMonthEnd)
         )
       );
 
-    // Get last month's tasks
-    const lastMonthTasks = await db
-      .select()
+    // Get last month's tasks count
+    const [lastMonthTasksResult] = await db
+      .select({ count: count() })
       .from(tasks)
       .where(
         and(
           eq(tasks.workspaceId, workspaceId),
-          gte(tasks.createdAt, lastMonthStart),
-          lte(tasks.createdAt, lastMonthEnd)
+          gte(tasks.created, lastMonthStart),
+          lte(tasks.created, lastMonthEnd)
         )
       );
 
-    const taskCount = thisMonthTasks.length;
-    const taskDifference = taskCount - lastMonthTasks.length;
+    const taskCount = thisMonthTasksResult.count;
+    const taskDifference = taskCount - lastMonthTasksResult.count;
 
-    // Get this month's assigned tasks
-    const thisMonthAssignedTasks = await db
-      .select()
-      .from(tasks)
-      .where(
-        and(
-          eq(tasks.workspaceId, workspaceId),
-          eq(tasks.assigneeId, user.id),
-          gte(tasks.createdAt, thisMonthStart),
-          lte(tasks.createdAt, thisMonthEnd)
-        )
-      );
-
-    // Get last month's assigned tasks
-    const lastMonthAssignedTasks = await db
-      .select()
+    // Get this month's assigned tasks count
+    const [thisMonthAssignedTasksResult] = await db
+      .select({ count: count() })
       .from(tasks)
       .where(
         and(
           eq(tasks.workspaceId, workspaceId),
           eq(tasks.assigneeId, user.id),
-          gte(tasks.createdAt, lastMonthStart),
-          lte(tasks.createdAt, lastMonthEnd)
+          gte(tasks.created, thisMonthStart),
+          lte(tasks.created, thisMonthEnd)
         )
       );
 
-    const assignedTaskCount = thisMonthAssignedTasks.length;
+    // Get last month's assigned tasks count
+    const [lastMonthAssignedTasksResult] = await db
+      .select({ count: count() })
+      .from(tasks)
+      .where(
+        and(
+          eq(tasks.workspaceId, workspaceId),
+          eq(tasks.assigneeId, user.id),
+          gte(tasks.created, lastMonthStart),
+          lte(tasks.created, lastMonthEnd)
+        )
+      );
+
+    const assignedTaskCount = thisMonthAssignedTasksResult.count;
     const assignedTaskDifference =
-      assignedTaskCount - lastMonthAssignedTasks.length;
+      assignedTaskCount - lastMonthAssignedTasksResult.count;
 
-    // Get this month's completed tasks
-    const thisMonthCompletedTasks = await db
-      .select()
+    // Get this month's completed tasks count
+    const [thisMonthCompletedTasksResult] = await db
+      .select({ count: count() })
       .from(tasks)
       .where(
         and(
           eq(tasks.workspaceId, workspaceId),
           eq(tasks.status, TaskStatus.DONE),
-          gte(tasks.createdAt, thisMonthStart),
-          lte(tasks.createdAt, thisMonthEnd)
+          gte(tasks.created, thisMonthStart),
+          lte(tasks.created, thisMonthEnd)
         )
       );
 
-    // Get last month's completed tasks
-    const lastMonthCompletedTasks = await db
-      .select()
+    // Get last month's completed tasks count
+    const [lastMonthCompletedTasksResult] = await db
+      .select({ count: count() })
       .from(tasks)
       .where(
         and(
           eq(tasks.workspaceId, workspaceId),
           eq(tasks.status, TaskStatus.DONE),
-          gte(tasks.createdAt, lastMonthStart),
-          lte(tasks.createdAt, lastMonthEnd)
+          gte(tasks.created, lastMonthStart),
+          lte(tasks.created, lastMonthEnd)
         )
       );
 
-    const completedTaskCount = thisMonthCompletedTasks.length;
+    const completedTaskCount = thisMonthCompletedTasksResult.count;
     const completedTaskDifference =
-      completedTaskCount - lastMonthCompletedTasks.length;
+      completedTaskCount - lastMonthCompletedTasksResult.count;
 
-    // Get this month's overdue tasks
-    const thisMonthOverdueTasks = await db
-      .select()
+    // Get this month's overdue tasks count
+    const [thisMonthOverdueTasksResult] = await db
+      .select({ count: count() })
       .from(tasks)
       .where(
         and(
           eq(tasks.workspaceId, workspaceId),
           lte(tasks.dueDate, now),
-          gte(tasks.createdAt, thisMonthStart),
-          lte(tasks.createdAt, thisMonthEnd)
+          gte(tasks.created, thisMonthStart),
+          lte(tasks.created, thisMonthEnd)
         )
       );
 
-    // Get last month's overdue tasks
-    const lastMonthOverdueTasks = await db
-      .select()
+    // Get last month's overdue tasks count
+    const [lastMonthOverdueTasksResult] = await db
+      .select({ count: count() })
       .from(tasks)
       .where(
         and(
           eq(tasks.workspaceId, workspaceId),
           lte(tasks.dueDate, lastMonthEnd),
-          gte(tasks.createdAt, lastMonthStart),
-          lte(tasks.createdAt, lastMonthEnd)
+          gte(tasks.created, lastMonthStart),
+          lte(tasks.created, lastMonthEnd)
         )
       );
 
-    const overdueTaskCount = thisMonthOverdueTasks.length;
-    const overdueTaskDifference = overdueTaskCount - lastMonthOverdueTasks.length;
+    const overdueTaskCount = thisMonthOverdueTasksResult.count;
+    const overdueTaskDifference = overdueTaskCount - lastMonthOverdueTasksResult.count;
 
     // Calculate incomplete tasks (all tasks except DONE)
     const incompleteTaskCount = taskCount - completedTaskCount;

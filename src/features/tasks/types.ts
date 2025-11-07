@@ -1,43 +1,59 @@
 export enum TaskStatus {
   BACKLOG = "BACKLOG",
-  TODO = "TODO",
-  IN_PROGRESS = "IN_PROGRESS",
+  TODO = "To Do",
+  IN_PROGRESS = "In Progress",
   IN_REVIEW = "IN_REVIEW",
-  DONE = "DONE",
+  DONE = "Done",
 }
 
 export enum TaskPriority {
-  LOW = "LOW",
-  MEDIUM = "MEDIUM",
-  HIGH = "HIGH",
-  CRITICAL = "CRITICAL",
+  LOW = "Low",
+  MEDIUM = "Medium",
+  HIGH = "High",
+  CRITICAL = "Critical",
 }
 
-export enum TaskImportance {
-  LOW = "LOW",
-  MEDIUM = "MEDIUM",
-  HIGH = "HIGH",
-  CRITICAL = "CRITICAL",
+export enum IssueType {
+  TASK = "Task",
+  BUG = "Bug",
+  EPIC = "Epic",
+  STORY = "Story",
+  SUB_TASK = "Sub-task",
+  IMPROVEMENT = "Improvement",
+}
+
+export enum Resolution {
+  DONE = "Done",
+  WONT_FIX = "Won't Fix",
+  DUPLICATE = "Duplicate",
+  CANNOT_REPRODUCE = "Cannot Reproduce",
+  INCOMPLETE = "Incomplete",
+  FIXED = "Fixed",
 }
 
 export type Task = {
   id: string;
-  createdAt: string;
-  updatedAt: string;
-  name: string;
+  summary: string;
+  issueId: string;
+  issueType: IssueType;
   status: TaskStatus;
-  workspaceId: string;
-  assigneeId: string;
-  projectId: string;
-  position: number;
-  dueDate: string;
+  projectName: string;
+  priority: TaskPriority;
+  resolution?: Resolution;
+  assigneeId?: string;
+  reporterId?: string;
+  creatorId?: string;
+  created: string;
+  updated: string;
+  resolved?: string;
+  dueDate?: string;
+  labels?: string[];
   description?: string;
-  priority?: TaskPriority;
-  importance?: TaskImportance;
-  category?: string;
+  projectId?: string;
+  workspaceId: string;
   estimatedHours?: number;
-  actualHours?: number;
-  tags?: string[];
+  actualHours: number;
+  position: number;
   assignee?: {
     id: string;
     name: string;
@@ -51,14 +67,14 @@ export type Task = {
 };
 
 export type ExcelTaskData = {
-  name: string;
+  summary: string;
   description?: string;
   status: TaskStatus;
   priority: TaskPriority;
-  importance: TaskImportance;
-  dueDate: string;
-  category?: string;
+  issueType: IssueType;
+  dueDate?: string;
+  projectName: string;
   estimatedHours?: number;
   assigneeEmail?: string;
-  tags?: string[];
+  labels?: string[];
 };

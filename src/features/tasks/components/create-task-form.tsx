@@ -33,7 +33,7 @@ import {
 
 import { createTaskSchema } from "../schemas";
 import { useCreateTask } from "../api/use-create-task";
-import { TaskStatus, TaskPriority, TaskImportance } from "../types";
+import { TaskStatus, TaskPriority, IssueType } from "../types";
 
 interface CreateTaskFormProps {
   onCancel?: () => void;
@@ -82,17 +82,45 @@ export const CreateTaskForm = ({
             <div className="flex flex-col gap-y-4">
               <FormField
                 control={form.control}
-                name="name"
+                name="summary"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Task Name</FormLabel>
+                    <FormLabel>Summary</FormLabel>
                     <FormControl>
-                      <Input placeholder="Enter task name" {...field} />
+                      <Input placeholder="Enter task summary" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="issueId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Issue ID</FormLabel>
+                      <FormControl>
+                        <Input placeholder="e.g., VECV-001" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="projectName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Project Name</FormLabel>
+                      <FormControl>
+                        <Input placeholder="e.g., VECV-SPINE" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
               <FormField
                 control={form.control}
                 name="description"
@@ -111,19 +139,6 @@ export const CreateTaskForm = ({
                 )}
               />
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="category"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Category</FormLabel>
-                      <FormControl>
-                        <Input placeholder="e.g., Bug, Feature, Enhancement" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
                 <FormField
                   control={form.control}
                   name="estimatedHours"
@@ -273,44 +288,38 @@ export const CreateTaskForm = ({
                 />
                 <FormField
                   control={form.control}
-                  name="importance"
+                  name="issueType"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Importance</FormLabel>
+                      <FormLabel>Issue Type</FormLabel>
                       <Select
                         defaultValue={field.value}
                         onValueChange={field.onChange}
                       >
                         <FormControl>
                           <SelectTrigger>
-                            <SelectValue placeholder="Select importance" />
+                            <SelectValue placeholder="Select issue type" />
                           </SelectTrigger>
                         </FormControl>
                         <FormMessage />
                         <SelectContent>
-                          <SelectItem value={TaskImportance.LOW}>
-                            <span className="flex items-center gap-2">
-                              <div className="w-2 h-2 rounded-full bg-blue-300" />
-                              Low
-                            </span>
+                          <SelectItem value={IssueType.TASK}>
+                            Task
                           </SelectItem>
-                          <SelectItem value={TaskImportance.MEDIUM}>
-                            <span className="flex items-center gap-2">
-                              <div className="w-2 h-2 rounded-full bg-blue-500" />
-                              Medium
-                            </span>
+                          <SelectItem value={IssueType.BUG}>
+                            Bug
                           </SelectItem>
-                          <SelectItem value={TaskImportance.HIGH}>
-                            <span className="flex items-center gap-2">
-                              <div className="w-2 h-2 rounded-full bg-purple-500" />
-                              High
-                            </span>
+                          <SelectItem value={IssueType.EPIC}>
+                            Epic
                           </SelectItem>
-                          <SelectItem value={TaskImportance.CRITICAL}>
-                            <span className="flex items-center gap-2">
-                              <div className="w-2 h-2 rounded-full bg-purple-700" />
-                              Critical
-                            </span>
+                          <SelectItem value={IssueType.STORY}>
+                            Story
+                          </SelectItem>
+                          <SelectItem value={IssueType.SUB_TASK}>
+                            Sub-task
+                          </SelectItem>
+                          <SelectItem value={IssueType.IMPROVEMENT}>
+                            Improvement
                           </SelectItem>
                         </SelectContent>
                       </Select>

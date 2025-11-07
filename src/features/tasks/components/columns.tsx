@@ -24,15 +24,15 @@ export const columns: ColumnDef<Task>[] = [
           variant="ghost"
           onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
         >
-          Task Name
+          Summary
           <ArrowUpDown className="ml-2 h-4 w-4" />
         </Button>
       );
     },
     cell: ({ row }) => {
-      const name = row.original.name;
+      const summary = row.original.summary;
 
-      return <p className="line-clamp-1">{name}</p>;
+      return <p className="line-clamp-1">{summary}</p>;
     },
   },
   {
@@ -107,7 +107,7 @@ export const columns: ColumnDef<Task>[] = [
     cell: ({ row }) => {
       const dueDate = row.original.dueDate;
 
-      return <TaskDate value={dueDate} />;
+      return <TaskDate value={dueDate || ""} />;
     },
   },
   {
@@ -133,7 +133,7 @@ export const columns: ColumnDef<Task>[] = [
     id: "actions",
     cell: ({ row }) => {
       const id = row.original.id;
-      const projectId = row.original.projectId;
+      const projectId = row.original.projectId || "";
 
       return (
         <TaskActions id={id} projectId={projectId}>

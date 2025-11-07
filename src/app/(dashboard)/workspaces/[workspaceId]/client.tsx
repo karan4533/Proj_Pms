@@ -75,21 +75,15 @@ export const TaskList = ({ data, total }: TaskListProps) => {
   const workspaceId = useWorkspaceId();
   const { open: createTask } = useCreateTaskModal();
 
-  // Sort tasks by priority and importance (Critical first, then High, Medium, Low)
+  // Sort tasks by priority (Critical first, then High, Medium, Low)
   const sortedTasks = [...data].sort((a, b) => {
-    const priorityOrder = { CRITICAL: 4, HIGH: 3, MEDIUM: 2, LOW: 1 };
-    const importanceOrder = { CRITICAL: 4, HIGH: 3, MEDIUM: 2, LOW: 1 };
+    const priorityOrder = { "Critical": 4, "High": 3, "Medium": 2, "Low": 1 };
     
     const aPriority = priorityOrder[a.priority as keyof typeof priorityOrder] || 0;
     const bPriority = priorityOrder[b.priority as keyof typeof priorityOrder] || 0;
-    const aImportance = importanceOrder[a.importance as keyof typeof importanceOrder] || 0;
-    const bImportance = importanceOrder[b.importance as keyof typeof importanceOrder] || 0;
     
-    // First sort by priority, then by importance
-    if (aPriority !== bPriority) {
-      return bPriority - aPriority; // Descending order
-    }
-    return bImportance - aImportance; // Descending order
+    // Sort by priority in descending order
+    return bPriority - aPriority;
   });
 
   return (
@@ -109,39 +103,32 @@ export const TaskList = ({ data, total }: TaskListProps) => {
                 <Card className="shadow-none rounded-lg hover:opacity-75 transition">
                   <CardContent className="p-4">
                     <div className="flex items-start justify-between mb-2">
-                      <p className="text-lg font-medium truncate flex-1">{task.name}</p>
+                      <p className="text-lg font-medium truncate flex-1">{task.summary}</p>
                       <div className="flex gap-1 ml-2">
                         {task.priority && (
                           <div className={`w-2 h-2 rounded-full ${
-                            task.priority === 'CRITICAL' ? 'bg-red-500' :
-                            task.priority === 'HIGH' ? 'bg-orange-500' :
-                            task.priority === 'MEDIUM' ? 'bg-yellow-500' : 'bg-green-500'
+                            task.priority === 'Critical' ? 'bg-red-500' :
+                            task.priority === 'High' ? 'bg-orange-500' :
+                            task.priority === 'Medium' ? 'bg-yellow-500' : 'bg-green-500'
                           }`} title={`Priority: ${task.priority}`} />
-                        )}
-                        {task.importance && (
-                          <div className={`w-2 h-2 rounded-full ${
-                            task.importance === 'CRITICAL' ? 'bg-purple-700' :
-                            task.importance === 'HIGH' ? 'bg-purple-500' :
-                            task.importance === 'MEDIUM' ? 'bg-blue-500' : 'bg-blue-300'
-                          }`} title={`Importance: ${task.importance}`} />
                         )}
                       </div>
                     </div>
                     <div className="flex items-center gap-x-2">
-                      <p className="text-sm text-gray-600">{task.project?.name}</p>
-                      {task.category && (
+                      <p className="text-sm text-gray-600">{task.project?.name || task.projectName}</p>
+                      <div className="size-1 rounded-full bg-neutral-300" />
+                      <span className="text-xs bg-gray-100 px-2 py-1 rounded-full">{task.issueType}</span>
+                      {task.dueDate && (
                         <>
                           <div className="size-1 rounded-full bg-neutral-300" />
-                          <span className="text-xs bg-gray-100 px-2 py-1 rounded-full">{task.category}</span>
+                          <div className="flex items-center text-sm text-muted-foreground">
+                            <CalendarIcon className="size-3 mr-1" />
+                            <span className="truncate">
+                              {formatDistanceToNow(new Date(task.dueDate))}
+                            </span>
+                          </div>
                         </>
                       )}
-                      <div className="size-1 rounded-full bg-neutral-300" />
-                      <div className="flex items-center text-sm text-muted-foreground">
-                        <CalendarIcon className="size-3 mr-1" />
-                        <span className="truncate">
-                          {formatDistanceToNow(new Date(task.dueDate))}
-                        </span>
-                      </div>
                     </div>
                   </CardContent>
                 </Card>

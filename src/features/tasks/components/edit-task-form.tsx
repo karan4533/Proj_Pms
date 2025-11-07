@@ -89,12 +89,12 @@ export const EditTaskForm = ({
             <div className="flex flex-col gap-y-4">
               <FormField
                 control={form.control}
-                name="name"
+                name="summary"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Task Name</FormLabel>
+                    <FormLabel>Summary</FormLabel>
                     <FormControl>
-                      <Input placeholder="Enter task name" {...field} />
+                      <Input placeholder="Enter task summary" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
