@@ -2,7 +2,7 @@ import { zValidator } from "@hono/zod-validator";
 import { endOfMonth, startOfMonth, subMonths } from "date-fns";
 import { Hono } from "hono";
 import { z } from "zod";
-import { eq, and, desc, gte, lte } from "drizzle-orm";
+import { eq, and, desc, gte, lte, inArray } from "drizzle-orm";
 
 import { getMember } from "@/features/members/utils";
 import { MemberRole } from "@/features/members/types";
@@ -194,6 +194,76 @@ const app = new Hono()
 
     return c.json({ data: { id: projectId } });
   })
+  .post(
+    "/bulk-delete",
+    sessionMiddleware,
+    zValidator(
+      "json",
+      z.object({
+        projectIds: z.array(z.string()).min(1, "At least one project ID is required"),
+        workspaceId: z.string(),
+      })
+    ),
+    async (c) => {
+      const user = c.get("user");
+      const { projectIds, workspaceId } = c.req.valid("json");
+
+      console.log('🗑️ Bulk delete request:', { projectIds, workspaceId, userId: user.id });
+
+      // Verify user is member of workspace
+      const member = await getMember({
+        workspaceId,
+        userId: user.id,
+      });
+
+      if (!member) {
+        return c.json({ error: "Unauthorized" }, 401);
+      }
+
+      // RBAC: Only ADMIN can bulk delete projects
+      if (member.role !== MemberRole.ADMIN) {
+        return c.json({ 
+          error: "Forbidden: Only admins can delete projects" 
+        }, 403);
+      }
+
+      // Verify all projects belong to this workspace
+      const existingProjects = await db
+        .select()
+        .from(projects)
+        .where(
+          and(
+            inArray(projects.id, projectIds),
+            eq(projects.workspaceId, workspaceId)
+          )
+        );
+
+      if (existingProjects.length !== projectIds.length) {
+        return c.json({ 
+          error: "Some projects not found or don't belong to this workspace" 
+        }, 404);
+      }
+
+      // Delete all projects (cascade will delete related tasks)
+      await db
+        .delete(projects)
+        .where(
+          and(
+            inArray(projects.id, projectIds),
+            eq(projects.workspaceId, workspaceId)
+          )
+        );
+
+      console.log(`✅ Deleted ${projectIds.length} projects`);
+
+      return c.json({ 
+        data: { 
+          deletedCount: projectIds.length,
+          projectIds: projectIds 
+        } 
+      });
+    }
+  )
   .get("/:projectId/analytics", sessionMiddleware, async (c) => {
     const user = c.get("user");
     const { projectId } = c.req.param();

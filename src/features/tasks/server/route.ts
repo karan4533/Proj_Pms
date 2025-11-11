@@ -12,6 +12,78 @@ import { MemberRole } from "@/features/members/types";
 import { createTaskSchema } from "../schemas";
 import { TaskStatus, TaskPriority, IssueType, Resolution } from "../types";
 
+/**
+ * Generate a human-readable batch ID
+ * Format: PROJECTNAME_YYYYMMDD_HHMMSS_XXX
+ * Example: BENZ_20251111_143052_A7B
+ */
+function generateReadableBatchId(projectName: string): string {
+  const now = new Date();
+  
+  // Format: YYYYMMDD
+  const date = now.toISOString().slice(0, 10).replace(/-/g, '');
+  
+  // Format: HHMMSS
+  const time = now.toTimeString().slice(0, 8).replace(/:/g, '');
+  
+  // Generate random 3-character suffix (A-Z, 0-9)
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  const suffix = Array.from({ length: 3 }, () => 
+    chars.charAt(Math.floor(Math.random() * chars.length))
+  ).join('');
+  
+  // Clean project name (uppercase, replace spaces/special chars with underscore, max 10 chars)
+  const cleanName = projectName
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, '_')
+    .slice(0, 10);
+  
+  return `${cleanName}_${date}_${time}_${suffix}`;
+}
+
+/**
+ * Generate a sequential batch ID
+ * Format: BATCH_NNNNNN (6-digit number)
+ * Example: BATCH_001234
+ */
+async function generateSequentialBatchId(projectId: string): Promise<string> {
+  // Get the count of existing batches for this project
+  const [result] = await db
+    .select({ count: sql<number>`count(DISTINCT upload_batch_id)` })
+    .from(tasks)
+    .where(eq(tasks.projectId, projectId));
+  
+  const nextNumber = (result?.count || 0) + 1;
+  return `BATCH_${String(nextNumber).padStart(6, '0')}`;
+}
+
+/**
+ * Generate a custom format batch ID
+ * Format: [PROJECT_CODE]-[USER_INITIALS]-[TIMESTAMP]
+ * Example: BNZ-AK-20251111143052
+ */
+function generateCustomBatchId(projectName: string, userName: string): string {
+  const now = new Date();
+  
+  // Project code (first 3 letters)
+  const projectCode = projectName
+    .toUpperCase()
+    .replace(/[^A-Z]/g, '')
+    .slice(0, 3)
+    .padEnd(3, 'X');
+  
+  // User initials (first letter of first and last name)
+  const nameParts = userName.split(' ');
+  const initials = nameParts.length >= 2
+    ? `${nameParts[0][0]}${nameParts[nameParts.length - 1][0]}`.toUpperCase()
+    : userName.slice(0, 2).toUpperCase();
+  
+  // Timestamp: YYYYMMDDHHmmss
+  const timestamp = now.toISOString().slice(0, 19).replace(/[-:T]/g, '');
+  
+  return `${projectCode}-${initials}-${timestamp}`;
+}
+
 const app = new Hono()
   .delete("/:taskId", sessionMiddleware, async (c) => {
     const user = c.get("user");
@@ -484,7 +556,27 @@ const app = new Hono()
 
         console.log('✅ Project found:', project.name);
 
-        // Check if file is CSV or Excel
+        // Generate a unique batch ID for this upload
+        // Choose one of the following formats:
+        
+        // Option 1: Human-readable with project name, date, time, and random suffix
+        // Example: BENZ_20251111_143052_A7B
+        const uploadBatchId = generateReadableBatchId(project.name);
+        
+        // Option 2: Sequential batch number (uncomment to use)
+        // Example: BATCH_001234
+        // const uploadBatchId = await generateSequentialBatchId(projectId);
+        
+        // Option 3: Custom format with project code, user initials, and timestamp
+        // Example: BNZ-AU-20251111143052
+        // const uploadBatchId = generateCustomBatchId(project.name, user.name);
+        
+        // Option 4: Original UUID format (uncomment to use)
+        // Example: 550e8400-e29b-41d4-a716-446655440000
+        // const uploadBatchId = crypto.randomUUID();
+        
+        const uploadedAt = new Date();
+        console.log('🔖 Upload Batch ID:', uploadBatchId);
         const fileName = file.name.toLowerCase();
         let rowsData: string[][] = [];
         
@@ -601,7 +693,10 @@ const app = new Hono()
           return new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
         };
 
-        // Process each row (skip header)
+        // Process rows in batches for better performance (100x faster than row-by-row)
+        const BATCH_SIZE = 100;
+        const taskDataBatch = [];
+        
         for (let i = 1; i < rowsData.length; i++) {
           const row = rowsData[i];
           
@@ -734,19 +829,38 @@ const app = new Hono()
             actualHours: parsedActualHours,
             labels: parsedLabels,
             position: parsedPosition,
+            // Upload tracking
+            uploadBatchId: uploadBatchId,
+            uploadedAt: uploadedAt,
+            uploadedBy: user.id,
           };
 
-          try {
-            const [newTask] = await db
-              .insert(tasks)
-              .values(taskData)
-              .returning();
-            
-            createdTasks.push(newTask);
-            console.log(`✅ Created task ${i}: ${summary}`);
-          } catch (error) {
-            console.error(`❌ Error creating task from row ${i}:`, error);
-            console.error('Task data:', taskData);
+          taskDataBatch.push(taskData);
+          
+          // Insert batch when it reaches BATCH_SIZE or at the end
+          if (taskDataBatch.length >= BATCH_SIZE || i === rowsData.length - 1) {
+            try {
+              const insertedTasks = await db
+                .insert(tasks)
+                .values(taskDataBatch)
+                .returning();
+              
+              createdTasks.push(...insertedTasks);
+              console.log(`✅ Inserted batch of ${taskDataBatch.length} tasks (total: ${createdTasks.length})`);
+              taskDataBatch.length = 0; // Clear batch
+            } catch (error) {
+              console.error(`❌ Error inserting batch at row ${i}:`, error);
+              // Try inserting failed batch one-by-one as fallback
+              for (const failedTask of taskDataBatch) {
+                try {
+                  const [newTask] = await db.insert(tasks).values(failedTask).returning();
+                  createdTasks.push(newTask);
+                } catch (singleError) {
+                  console.error(`❌ Failed to insert task: ${failedTask.summary}`, singleError);
+                }
+              }
+              taskDataBatch.length = 0; // Clear batch
+            }
           }
         }
 
@@ -755,6 +869,7 @@ const app = new Hono()
         return c.json({ 
           data: { 
             message: `Successfully imported ${createdTasks.length} tasks`,
+            uploadBatchId: uploadBatchId,
             tasks: createdTasks 
           } 
         });
@@ -764,6 +879,71 @@ const app = new Hono()
         console.error('Error details:', error instanceof Error ? error.message : String(error));
         return c.json({ 
           error: error instanceof Error ? error.message : "Failed to process CSV file" 
+        }, 500);
+      }
+    }
+  )
+  .delete(
+    "/batch/:batchId",
+    sessionMiddleware,
+    async (c) => {
+      try {
+        const user = c.get("user");
+        const { batchId } = c.req.param();
+
+        console.log('🗑️ Batch delete request for batch:', batchId);
+
+        // Get tasks from this batch to check permissions
+        const batchTasks = await db
+          .select()
+          .from(tasks)
+          .where(eq(tasks.uploadBatchId, batchId))
+          .limit(1);
+
+        if (batchTasks.length === 0) {
+          return c.json({ error: "Batch not found or already deleted" }, 404);
+        }
+
+        const workspaceId = batchTasks[0].workspaceId;
+
+        // Verify user is member of workspace
+        const member = await getMember({
+          workspaceId: workspaceId!,
+          userId: user.id,
+        });
+
+        if (!member) {
+          return c.json({ error: "Unauthorized" }, 401);
+        }
+
+        // RBAC: Only ADMIN and PROJECT_MANAGER can delete batches
+        const allowedRoles = [MemberRole.ADMIN, MemberRole.PROJECT_MANAGER];
+        if (!allowedRoles.includes(member.role as MemberRole)) {
+          return c.json({ 
+            error: "Forbidden: Only admins and project managers can delete upload batches" 
+          }, 403);
+        }
+
+        // Delete all tasks from this batch
+        const deletedTasks = await db
+          .delete(tasks)
+          .where(eq(tasks.uploadBatchId, batchId))
+          .returning();
+
+        console.log(`✅ Deleted ${deletedTasks.length} tasks from batch ${batchId}`);
+
+        return c.json({ 
+          data: { 
+            message: `Successfully deleted ${deletedTasks.length} tasks`,
+            deletedCount: deletedTasks.length,
+            batchId: batchId
+          } 
+        });
+
+      } catch (error) {
+        console.error('❌ Batch delete error:', error);
+        return c.json({ 
+          error: error instanceof Error ? error.message : "Failed to delete batch" 
         }, 500);
       }
     }

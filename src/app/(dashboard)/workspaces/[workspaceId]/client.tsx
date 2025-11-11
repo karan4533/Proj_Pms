@@ -3,6 +3,7 @@
 import { Analytics } from "@/components/analytics";
 import { DottedSeparator } from "@/components/dotted-separator";
 import { ExcelUploadCard } from "@/components/excel-upload-card";
+import { BulkDeleteProjectsCard } from "@/components/bulk-delete-projects-card";
 import { PageError } from "@/components/page-error";
 import { PageLoader } from "@/components/page-loader";
 import { Button } from "@/components/ui/button";
@@ -26,13 +27,19 @@ import { useWorkspaceId } from "@/features/workspaces/hooks/use-workspace-id";
 import { formatDistanceToNow } from "date-fns";
 import { CalendarIcon, PlusIcon, SettingsIcon } from "lucide-react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 
 export const WorkspaceIdClient = () => {
   const workspaceId = useWorkspaceId();
+  const searchParams = useSearchParams();
+  const projectId = searchParams.get('projectId');
+  const permissions = usePermissionContext();
+  
   const { data: analytics, isLoading: isLoadingAnalytics } =
     useGetWorkspaceAnalytics({ workspaceId });
   const { data: tasks, isLoading: isLoadingTasks } = useGetTasks({
     workspaceId,
+    projectId: projectId || undefined,
   });
   const { data: projects, isLoading: isLoadingProjects } = useGetProjects({
     workspaceId,
@@ -55,10 +62,22 @@ export const WorkspaceIdClient = () => {
     return <PageError message="Failed to load workspace data." />;
   }
 
+  // Check if user is ADMIN
+  const isAdmin = permissions.role === "ADMIN";
+
   return (
     <div className="h-full flex flex-col space-y-4">
       <Analytics data={analytics} />
-      <ExcelUploadCard />
+      
+      {/* Excel Upload and Bulk Delete Cards - Side by Side */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <ExcelUploadCard />
+        {/* Only show bulk delete to ADMIN */}
+        {isAdmin && (
+          <BulkDeleteProjectsCard projects={projects.documents} />
+        )}
+      </div>
+
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
         <TaskList data={tasks.documents as Task[]} total={tasks.total} />
         <ProjectList data={projects.documents} total={projects.total} />

@@ -111,6 +111,11 @@ export const tasks = pgTable('tasks', {
   projectId: uuid('project_id').references(() => projects.id, { onDelete: 'cascade' }),
   workspaceId: uuid('workspace_id').references(() => workspaces.id, { onDelete: 'cascade' }),
   
+  // Upload tracking for batch operations
+  uploadBatchId: uuid('upload_batch_id'), // Track which CSV upload this task came from
+  uploadedAt: timestamp('uploaded_at'), // When this task was uploaded
+  uploadedBy: uuid('uploaded_by').references(() => users.id), // Who uploaded this task
+  
   // Additional useful fields
   estimatedHours: integer('estimated_hours'),
   actualHours: integer('actual_hours').default(0),
@@ -127,6 +132,7 @@ export const tasks = pgTable('tasks', {
   projectNameIdx: index('tasks_project_name_idx').on(table.projectName),
   issueTypeIdx: index('tasks_issue_type_idx').on(table.issueType),
   dueDateIdx: index('tasks_due_date_idx').on(table.dueDate),
+  uploadBatchIdx: index('tasks_upload_batch_idx').on(table.uploadBatchId), // Index for batch operations
   // Composite indexes for analytics performance
   workspaceCreatedIdx: index('tasks_workspace_created_idx').on(table.workspaceId, table.created),
   workspaceStatusCreatedIdx: index('tasks_workspace_status_created_idx').on(table.workspaceId, table.status, table.created),

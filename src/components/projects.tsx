@@ -26,8 +26,9 @@ export const Projects = () => {
         />
       </div>
       {data?.documents.map((project) => {
-        const href = `/workspaces/${workspaceId}/projects/${project.id}`;
-        const isActive = pathname === href;
+        // Link to tasks page with projectId filter
+        const href = `/workspaces/${workspaceId}/tasks?projectId=${project.id}`;
+        const isActive = pathname.includes(`projectId=${project.id}`) || pathname === `/workspaces/${workspaceId}/projects/${project.id}`;
 
         return (
           <Link key={project.id} href={href}>

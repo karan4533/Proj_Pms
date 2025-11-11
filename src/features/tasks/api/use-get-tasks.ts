@@ -51,6 +51,9 @@ export const useGetTasks = ({
 
       return data;
     },
+    staleTime: 0, // Always refetch on mount
+    refetchOnWindowFocus: true, // Refetch when window regains focus
+    refetchOnMount: true, // Refetch on component mount
   });
 
   return query;

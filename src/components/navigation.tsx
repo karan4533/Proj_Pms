@@ -10,7 +10,7 @@ import {
   GoHomeFill,
 } from "react-icons/go";
 
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { useWorkspaceId } from "@/features/workspaces/hooks/use-workspace-id";
 
 const routes = [
@@ -49,16 +49,22 @@ const routes = [
 export const Navigation = () => {
   const workspaceId = useWorkspaceId();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  
+  // Get current projectId from URL if exists
+  const projectId = searchParams.get('projectId');
 
   return (
     <ul className="flex flex-col">
       {routes.map((item) => {
         const fullHref = `/workspaces/${workspaceId}${item.href}`;
+        // Preserve projectId in navigation links if it exists
+        const hrefWithProject = projectId ? `${fullHref}?projectId=${projectId}` : fullHref;
         const isActive = pathname === fullHref;
         const Icon = isActive ? item.activeIcon : item.icon;
 
         return (
-          <Link key={item.href} href={fullHref}>
+          <Link key={item.href} href={hrefWithProject}>
             <div
               className={cn(
                 "flex items-center gap-2.5 p-2.5 rounded-md font-medium hover:text-primary transition text-muted-foreground",
