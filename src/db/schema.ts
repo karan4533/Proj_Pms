@@ -157,3 +157,26 @@ export const invitations = pgTable('invitations', {
   workspaceIdx: index('invitations_workspace_idx').on(table.workspaceId),
   statusIdx: index('invitations_status_idx').on(table.status),
 }));
+
+// Attendance table
+export const attendance = pgTable('attendance', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  workspaceId: uuid('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
+  projectId: uuid('project_id').references(() => projects.id, { onDelete: 'set null' }),
+  shiftStartTime: timestamp('shift_start_time').notNull(),
+  shiftEndTime: timestamp('shift_end_time'),
+  totalDuration: integer('total_duration'), // in minutes
+  endActivity: text('end_activity'), // What was accomplished at end
+  dailyTasks: jsonb('daily_tasks'), // array of task strings
+  status: text('status').notNull().default('IN_PROGRESS'), // IN_PROGRESS, COMPLETED
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => ({
+  userIdx: index('attendance_user_idx').on(table.userId),
+  workspaceIdx: index('attendance_workspace_idx').on(table.workspaceId),
+  projectIdx: index('attendance_project_idx').on(table.projectId),
+  dateIdx: index('attendance_date_idx').on(table.shiftStartTime),
+  statusIdx: index('attendance_status_idx').on(table.status),
+  userDateIdx: index('attendance_user_date_idx').on(table.userId, table.shiftStartTime),
+}));
