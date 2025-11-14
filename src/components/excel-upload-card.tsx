@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useRef } from "react";
-import { Upload, FileSpreadsheet, X, CheckCircle, AlertCircle } from "lucide-react";
+import { Upload, FileSpreadsheet, X, CheckCircle, AlertCircle, LoaderIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,38 +9,32 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { DottedSeparator } from "@/components/dotted-separator";
+import { cn } from "@/lib/utils";
 
-import { useGetWorkspaces } from "@/features/workspaces/api/use-get-workspaces";
 import { useGetProjects } from "@/features/projects/api/use-get-projects";
+import { useGetMembers } from "@/features/members/api/use-get-members";
 import { useUploadExcelTasks } from "@/features/tasks/api/use-upload-excel-tasks";
-import { useWorkspaceId } from "@/features/workspaces/hooks/use-workspace-id";
 
 export const ExcelUploadCard = () => {
   const [file, setFile] = useState<File | null>(null);
   const [projectId, setProjectId] = useState<string>("");
+  const [assigneeIds, setAssigneeIds] = useState<string[]>([]);
   const [dragActive, setDragActive] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Get current workspace from URL instead of managing state
-  const workspaceId = useWorkspaceId();
-  const { data: workspaces } = useGetWorkspaces();
-  const { data: projects } = useGetProjects({ workspaceId }, { enabled: !!workspaceId });
+  const { data: projects } = useGetProjects({});
+  const { data: members } = useGetMembers({});
   const { mutate: uploadExcel, isPending } = useUploadExcelTasks();
 
-  // Debug logging
-  React.useEffect(() => {
-    console.log('🔍 Upload Card State:', {
-      workspaceId,
-      projectCount: projects?.documents?.length || 0,
-      projects: projects?.documents?.map(p => ({ id: p.id, name: p.name })) || [],
-      selectedProjectId: projectId,
-    });
-  }, [workspaceId, projects, projectId]);
+  const handleAddAssignee = (userId: string) => {
+    if (!assigneeIds.includes(userId)) {
+      setAssigneeIds([...assigneeIds, userId]);
+    }
+  };
 
-  // Clear project selection when workspace changes
-  React.useEffect(() => {
-    setProjectId("");
-  }, [workspaceId]);
+  const handleRemoveAssignee = (userId: string) => {
+    setAssigneeIds(assigneeIds.filter((id) => id !== userId));
+  };
 
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
@@ -74,7 +68,6 @@ export const ExcelUploadCard = () => {
     const validTypes = ['text/csv'];
     const isValidType = validTypes.includes(file.type) || file.name.match(/\.csv$/i) !== null;
     
-    // Increase file size limit from 10MB to 100MB
     const maxSizeInBytes = 100 * 1024 * 1024; // 100MB
     const isValidSize = file.size <= maxSizeInBytes;
     
@@ -100,25 +93,12 @@ export const ExcelUploadCard = () => {
   };
 
   const handleUpload = () => {
-    if (!file || !workspaceId || !projectId) {
-      console.log('❌ Upload blocked:', {
-        hasFile: !!file,
-        hasWorkspace: !!workspaceId,
-        hasProject: !!projectId,
-        workspaceId,
-        projectId,
-      });
+    if (!file || !projectId) {
       return;
     }
 
-    console.log('✅ Starting upload:', {
-      fileName: file.name,
-      fileSize: file.size,
-      workspaceId,
-      projectId,
-      workspace: selectedWorkspace?.name,
-      project: selectedProject?.name,
-    });
+    const selectedProject = projects?.documents?.find(p => p.id === projectId);
+    const workspaceId = selectedProject?.workspaceId; // Use project's workspace ID (can be null/undefined)
 
     uploadExcel({
       file,
@@ -128,6 +108,7 @@ export const ExcelUploadCard = () => {
       onSuccess: () => {
         setFile(null);
         setProjectId("");
+        setAssigneeIds([]);
         if (fileInputRef.current) {
           fileInputRef.current.value = "";
         }
@@ -142,7 +123,6 @@ export const ExcelUploadCard = () => {
     }
   };
 
-  const selectedWorkspace = workspaces?.documents?.find(w => w.id === workspaceId);
   const selectedProject = projects?.documents?.find(p => p.id === projectId);
 
   return (
@@ -153,131 +133,185 @@ export const ExcelUploadCard = () => {
           Bulk Task Import
         </CardTitle>
         <CardDescription>
-          Upload a CSV file to create multiple tasks at once. Expected columns: Epic, Story, Planned Start, Planned Completion, Responsibility.
+          Upload a CSV file to create multiple tasks at once. Select a project and optionally choose default assignees.
           <br />
           <Badge variant="outline" className="mt-2">CSV format only - Up to 100MB</Badge>
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
-        {/* Current Workspace and Project Selection */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <Label htmlFor="workspace">Current Workspace</Label>
-            <div className="flex items-center h-10 px-3 py-2 text-sm border border-input rounded-md bg-muted">
-              <span className="truncate">
-                {selectedWorkspace?.name || "Loading..."}
-              </span>
-            </div>
-          </div>
+        {/* Choose Project Dropdown */}
+        <div className="space-y-2">
+          <Label htmlFor="project">Choose Project *</Label>
+          <Select value={projectId} onValueChange={setProjectId}>
+            <SelectTrigger id="project">
+              <SelectValue placeholder="Select a project" />
+            </SelectTrigger>
+            <SelectContent>
+              {projects?.documents?.map((project) => (
+                <SelectItem key={project.id} value={project.id}>
+                  {project.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {!projectId && (
+            <p className="text-sm text-muted-foreground">
+              Please select a project before uploading
+            </p>
+          )}
+        </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="project">Project</Label>
-            <Select value={projectId} onValueChange={setProjectId} disabled={!workspaceId}>
-              <SelectTrigger>
-                <SelectValue placeholder={!workspaceId ? "Loading..." : "Select project"} />
-              </SelectTrigger>
-              <SelectContent>
-                {projects?.documents && projects.documents.length > 0 ? (
-                  projects.documents.map((project) => (
-                    <SelectItem key={project.id} value={project.id}>
-                      {project.name}
-                    </SelectItem>
-                  ))
-                ) : (
-                  <div className="px-2 py-1 text-sm text-muted-foreground">
-                    {workspaceId ? "No projects found. Create a project first." : "Loading projects..."}
-                  </div>
-                )}
-              </SelectContent>
-            </Select>
-          </div>
+        {/* Choose Project Assignees Dropdown */}
+        <div className="space-y-2">
+          <Label htmlFor="assignees">Choose Project Assignees (Optional)</Label>
+          <Select onValueChange={handleAddAssignee}>
+            <SelectTrigger id="assignees">
+              <SelectValue placeholder="Select assignees" />
+            </SelectTrigger>
+            <SelectContent>
+              {members?.documents
+                ?.filter((member: any) => !assigneeIds.includes(member.userId))
+                ?.map((member: any) => (
+                  <SelectItem key={member.userId} value={member.userId}>
+                    {member.name}
+                  </SelectItem>
+                ))}
+            </SelectContent>
+          </Select>
+          {assigneeIds.length > 0 && (
+            <div className="flex flex-wrap gap-2 mt-2">
+              {assigneeIds.map((userId) => {
+                const member = members?.documents?.find((m: any) => m.userId === userId);
+                return (
+                  <Badge key={userId} variant="secondary" className="py-1 px-2">
+                    {member?.name}
+                    <button
+                      onClick={() => handleRemoveAssignee(userId)}
+                      className="ml-2 hover:text-destructive transition"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </Badge>
+                );
+              })}
+            </div>
+          )}
+          <p className="text-sm text-muted-foreground">
+            Select employees who will be default assignees for imported tasks
+          </p>
         </div>
 
         <DottedSeparator />
 
-        {/* File Upload Area */}
-        <div className="space-y-4">
+        {/* Import File Field */}
+        <div className="space-y-2">
+          <Label htmlFor="file">Import File *</Label>
           <div
-            className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors ${
-              dragActive
-                ? "border-blue-500 bg-blue-50 dark:bg-blue-950/30"
-                : "border-border hover:border-muted-foreground"
-            }`}
+            className={cn(
+              "border-2 border-dashed rounded-lg p-8 text-center transition-colors",
+              dragActive ? "border-primary bg-primary/5" : "border-muted-foreground/25",
+              !projectId && "opacity-50 cursor-not-allowed"
+            )}
             onDragEnter={handleDrag}
             onDragLeave={handleDrag}
             onDragOver={handleDrag}
             onDrop={handleDrop}
           >
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".csv"
+              onChange={handleFileSelect}
+              className="hidden"
+              id="file-upload"
+              disabled={!projectId}
+            />
+            
             {!file ? (
-              <div className="space-y-2">
-                <Upload className="mx-auto h-8 w-8 text-muted-foreground" />
-                <div className="text-sm">
-                  <button
+              <div className="flex flex-col items-center gap-4">
+                <div className="rounded-full bg-primary/10 p-4">
+                  <Upload className="h-8 w-8 text-primary" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium mb-1">
+                    Drag and drop your CSV file here
+                  </p>
+                  <p className="text-xs text-muted-foreground mb-4">
+                    or click to browse
+                  </p>
+                  <Button
                     type="button"
-                    className="text-blue-600 dark:text-blue-400 hover:text-blue-500"
+                    variant="outline"
+                    size="sm"
                     onClick={() => fileInputRef.current?.click()}
+                    disabled={!projectId}
                   >
-                    Click to upload
-                  </button>{" "}
-                  or drag and drop
+                    Choose File
+                  </Button>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  CSV files only, up to 100MB
+                  Maximum file size: 100MB
                 </p>
               </div>
             ) : (
-              <div className="space-y-2">
-                <FileSpreadsheet className="mx-auto h-8 w-8 text-green-500 dark:text-green-400" />
-                <div className="flex items-center justify-center gap-2">
-                  <span className="text-sm font-medium">{file.name}</span>
-                  <Badge variant="secondary">{formatFileSize(file.size)}</Badge>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={removeFile}
-                    className="h-6 w-6 p-0"
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
+              <div className="flex items-center justify-between p-4 bg-secondary rounded-lg">
+                <div className="flex items-center gap-3">
+                  <FileSpreadsheet className="h-8 w-8 text-primary" />
+                  <div className="text-left">
+                    <p className="text-sm font-medium">{file.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {formatFileSize(file.size)}
+                    </p>
+                  </div>
                 </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  onClick={removeFile}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
               </div>
             )}
           </div>
-
-            <input
-            ref={fileInputRef}
-            type="file"
-            accept=".csv"
-            onChange={handleFileSelect}
-            className="hidden"
-          />
         </div>
 
-        {/* Upload Status */}
-        {file && workspaceId && projectId && (
-          <div className="space-y-2">
-            <div className="flex items-center gap-2 text-sm text-green-600 dark:text-green-400">
-              <CheckCircle className="h-4 w-4" />
-              Ready to upload to {selectedWorkspace?.name} → {selectedProject?.name}
-            </div>
-          </div>
-        )}
+        <DottedSeparator />
 
-        {/* Upload Button */}
-        <div className="flex justify-end">
+        {/* Submit Button */}
+        <div className="flex items-center justify-between">
+          <p className="text-sm text-muted-foreground">
+            {file && projectId ? (
+              <span className="flex items-center gap-2 text-green-600">
+                <CheckCircle className="h-4 w-4" />
+                Ready to import
+              </span>
+            ) : (
+              <span className="flex items-center gap-2">
+                <AlertCircle className="h-4 w-4" />
+                Please select project and file
+              </span>
+            )}
+          </p>
           <Button
             onClick={handleUpload}
-            disabled={!file || !workspaceId || !projectId || isPending}
-            className="min-w-[120px]"
+            disabled={isPending || !file || !projectId}
+            size="lg"
           >
-            {isPending ? "Uploading..." : "Upload Tasks"}
+            {isPending ? (
+              <>
+                <LoaderIcon className="h-4 w-4 mr-2 animate-spin" />
+                Importing...
+              </>
+            ) : (
+              <>
+                <Upload className="h-4 w-4 mr-2" />
+                Submit Import
+              </>
+            )}
           </Button>
         </div>
-
-     
-
-        
       </CardContent>
     </Card>
   );

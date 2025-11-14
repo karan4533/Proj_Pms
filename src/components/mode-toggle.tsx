@@ -12,7 +12,11 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-export function ModeToggle() {
+interface ModeToggleProps {
+  inline?: boolean;
+}
+
+export function ModeToggle({ inline = false }: ModeToggleProps) {
   const { setTheme, theme } = useTheme();
   const [mounted, setMounted] = React.useState(false);
 
@@ -22,11 +26,37 @@ export function ModeToggle() {
   }, []);
 
   if (!mounted) {
+    if (inline) {
+      return (
+        <div className="size-4">
+          <Sun className="h-4 w-4" />
+        </div>
+      );
+    }
     return (
       <Button variant="ghost" size="icon" className="h-9 w-9">
         <Sun className="h-[1.2rem] w-[1.2rem]" />
         <span className="sr-only">Toggle theme</span>
       </Button>
+    );
+  }
+
+  if (inline) {
+    return (
+      <div className="flex items-center gap-1">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-6 w-6"
+          onClick={(e) => {
+            e.stopPropagation();
+            setTheme(theme === "dark" ? "light" : "dark");
+          }}
+        >
+          <Sun className="h-3 w-3 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
+          <Moon className="absolute h-3 w-3 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+        </Button>
+      </div>
     );
   }
 

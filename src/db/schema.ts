@@ -8,6 +8,15 @@ export const users = pgTable('users', {
   emailVerified: timestamp('email_verified'),
   image: text('image'),
   password: text('password'),
+  // Profile fields
+  dateOfBirth: timestamp('date_of_birth'),
+  native: text('native'), // Native place/hometown
+  mobileNo: text('mobile_no'), // Mobile number
+  designation: text('designation'), // Job designation
+  department: text('department'), // Department
+  experience: integer('experience'), // Years of experience
+  dateOfJoining: timestamp('date_of_joining'), // Date of joining company
+  skills: jsonb('skills').$type<string[]>().default([]), // Array of skills
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 }, (table) => ({
@@ -80,7 +89,10 @@ export const projects = pgTable('projects', {
   id: uuid('id').primaryKey().defaultRandom(),
   name: text('name').notNull(),
   imageUrl: text('image_url'),
-  workspaceId: uuid('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
+  workspaceId: uuid('workspace_id').references(() => workspaces.id, { onDelete: 'cascade' }), // Made optional
+  postDate: timestamp('post_date'), // Date project was posted
+  tentativeEndDate: timestamp('tentative_end_date'), // Expected completion date
+  assignees: jsonb('assignees').$type<string[]>().default([]), // Array of user IDs
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 }, (table) => ({

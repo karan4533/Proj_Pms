@@ -1,18 +1,45 @@
 "use client";
 
+import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { FolderKanban, Clock, Lightbulb, FileText, Video, MessageSquare, GitCompare } from "lucide-react";
+import { 
+  Clock, 
+  Lightbulb, 
+  FileText, 
+  Video, 
+  MessageSquare, 
+  GitCompare,
+  BarChart3,
+  PlusCircle,
+  GoalIcon,
+  ChevronDown,
+  ChevronRight,
+  User,
+  UserPen
+} from "lucide-react";
+import { GoHome, GoHomeFill, GoCheckCircle, GoCheckCircleFill } from "react-icons/go";
+import { usePathname } from "next/navigation";
+import { cn } from "@/lib/utils";
 
 import { DottedSeparator } from "./dotted-separator";
-import { Navigation } from "./navigation";
-import { WorkspaceSwitcher } from "./workspace-switcher";
-import { Projects } from "./projects";
 import { CollapsibleSection } from "./collapsible-section";
-import { useWorkspaceId } from "@/features/workspaces/hooks/use-workspace-id";
 
 export const Sidebar = () => {
-  const workspaceId = useWorkspaceId();
+  const pathname = usePathname();
+  const [expandedSections, setExpandedSections] = useState<string[]>(["Home", "Projects"]);
+
+  const toggleSection = (section: string) => {
+    setExpandedSections((prev) =>
+      prev.includes(section)
+        ? prev.filter((item) => item !== section)
+        : [...prev, section]
+    );
+  };
+
+  const isHomeActive = pathname === "/dashboard" || pathname === "/report" || pathname === "/profile" || pathname === "/edit-profile";
+  const isProjectsActive = pathname === "/projects" || pathname === "/new-project" || pathname === "/tasks";
+
   return (
     <aside className="h-full bg-muted/50 dark:bg-muted/30 p-4 w-full border-r border-border overflow-y-auto">
       <div className="flex items-center gap-2">
@@ -23,18 +50,117 @@ export const Sidebar = () => {
       </div>
       <DottedSeparator className="my-4" />
       
-      {/* PM (Project Management) Section */}
-      <CollapsibleSection 
-        title="Project Manager" 
-        icon={<FolderKanban className="size-4" />}
-        defaultOpen={true}
-      >
-        <WorkspaceSwitcher />
-        <DottedSeparator className="my-4" />
-        <Navigation />
-        <DottedSeparator className="my-4" />
-        <Projects />
-      </CollapsibleSection>
+      {/* HOME Section */}
+      <div className="mb-2">
+        <button
+          onClick={() => toggleSection("Home")}
+          className={cn(
+            "flex items-center justify-between w-full gap-2.5 p-2.5 rounded-md font-medium hover:text-primary transition text-muted-foreground",
+            isHomeActive && "text-primary"
+          )}
+        >
+          <div className="flex items-center gap-2.5">
+            {isHomeActive ? <GoHomeFill className="size-5 text-primary" /> : <GoHome className="size-5" />}
+            Home
+          </div>
+          {expandedSections.includes("Home") ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />}
+        </button>
+        {expandedSections.includes("Home") && (
+          <nav className="flex flex-col gap-1 ml-4 mt-1">
+            <Link
+              href="/dashboard"
+              className={cn(
+                "flex items-center gap-2.5 p-2.5 rounded-md font-medium hover:text-primary transition text-muted-foreground",
+                pathname === "/dashboard" && "bg-background dark:bg-background shadow-sm text-primary border border-border"
+              )}
+            >
+              <BarChart3 className="size-4" />
+              Dashboard
+            </Link>
+            <Link
+              href="/report"
+              className={cn(
+                "flex items-center gap-2.5 p-2.5 rounded-md font-medium hover:text-primary transition text-muted-foreground",
+                pathname === "/report" && "bg-background dark:bg-background shadow-sm text-primary border border-border"
+              )}
+            >
+              <FileText className="size-4" />
+              Report
+            </Link>
+            <Link
+              href="/profile"
+              className={cn(
+                "flex items-center gap-2.5 p-2.5 rounded-md font-medium hover:text-primary transition text-muted-foreground",
+                pathname === "/profile" && "bg-background dark:bg-background shadow-sm text-primary border border-border"
+              )}
+            >
+              <User className="size-4" />
+              Add Profile
+            </Link>
+            <Link
+              href="/edit-profile"
+              className={cn(
+                "flex items-center gap-2.5 p-2.5 rounded-md font-medium hover:text-primary transition text-muted-foreground",
+                pathname === "/edit-profile" && "bg-background dark:bg-background shadow-sm text-primary border border-border"
+              )}
+            >
+              <UserPen className="size-4" />
+              Edit Profile
+            </Link>
+          </nav>
+        )}
+      </div>
+
+      {/* PROJECTS Section */}
+      <div className="mb-2">
+        <button
+          onClick={() => toggleSection("Projects")}
+          className={cn(
+            "flex items-center justify-between w-full gap-2.5 p-2.5 rounded-md font-medium hover:text-primary transition text-muted-foreground",
+            isProjectsActive && "text-primary"
+          )}
+        >
+          <div className="flex items-center gap-2.5">
+            {isProjectsActive ? <GoCheckCircleFill className="size-5 text-primary" /> : <GoCheckCircle className="size-5" />}
+            Projects
+          </div>
+          {expandedSections.includes("Projects") ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />}
+        </button>
+        {expandedSections.includes("Projects") && (
+          <nav className="flex flex-col gap-1 ml-4 mt-1">
+            <Link
+              href="/projects"
+              className={cn(
+                "flex items-center gap-2.5 p-2.5 rounded-md font-medium hover:text-primary transition text-muted-foreground",
+                pathname === "/projects" && "bg-background dark:bg-background shadow-sm text-primary border border-border"
+              )}
+            >
+              <GoCheckCircle className="size-4" />
+              Add Requirements
+            </Link>
+            <Link
+              href="/new-project"
+              className={cn(
+                "flex items-center gap-2.5 p-2.5 rounded-md font-medium hover:text-primary transition text-muted-foreground",
+                pathname === "/new-project" && "bg-background dark:bg-background shadow-sm text-primary border border-border"
+              )}
+            >
+              <PlusCircle className="size-4" />
+              Add Project
+            </Link>
+            <Link
+              href="/tasks"
+              className={cn(
+                "flex items-center gap-2.5 p-2.5 rounded-md font-medium hover:text-primary transition text-muted-foreground",
+                pathname === "/tasks" && "bg-background dark:bg-background shadow-sm text-primary border border-border"
+              )}
+            >
+              <GoalIcon className="size-4" />
+             Add Tasks
+            </Link>
+          </nav>
+        )}
+      </div>
 
       {/* ATTENDANCE Section */}
       <CollapsibleSection 
@@ -44,7 +170,7 @@ export const Sidebar = () => {
       >
         <nav className="flex flex-col gap-1 px-3">
           <Link
-            href={`/attendance/${workspaceId}`}
+            href="/attendance"
             className="flex items-center gap-2.5 p-2.5 rounded-md font-medium hover:text-primary transition text-muted-foreground hover:bg-muted"
           >
             <Clock className="size-4" />
@@ -61,28 +187,28 @@ export const Sidebar = () => {
       >
         <nav className="flex flex-col gap-1 px-3">
           <Link
-            href={`/workspaces/${workspaceId}/solutions/pdf-xml`}
+            href="/solutions/pdf-xml"
             className="flex items-center gap-2.5 p-2.5 rounded-md font-medium hover:text-primary transition text-muted-foreground hover:bg-muted"
           >
             <FileText className="size-4" />
             PDF to XML Extraction
           </Link>
           <Link
-            href={`/workspaces/${workspaceId}/solutions/video-rag`}
+            href="/solutions/video-rag"
             className="flex items-center gap-2.5 p-2.5 rounded-md font-medium hover:text-primary transition text-muted-foreground hover:bg-muted"
           >
             <Video className="size-4" />
             Video RAG
           </Link>
           <Link
-            href={`/workspaces/${workspaceId}/solutions/chatbot`}
+            href="/solutions/chatbot"
             className="flex items-center gap-2.5 p-2.5 rounded-md font-medium hover:text-primary transition text-muted-foreground hover:bg-muted"
           >
             <MessageSquare className="size-4" />
             Chatbot
           </Link>
           <Link
-            href={`/workspaces/${workspaceId}/solutions/similarity`}
+            href="/solutions/similarity"
             className="flex items-center gap-2.5 p-2.5 rounded-md font-medium hover:text-primary transition text-muted-foreground hover:bg-muted"
           >
             <GitCompare className="size-4" />

@@ -5,7 +5,6 @@ import { usePathname } from "next/navigation";
 import { RiAddCircleFill } from "react-icons/ri";
 
 import { useGetProjects } from "@/features/projects/api/use-get-projects";
-import { useWorkspaceId } from "@/features/workspaces/hooks/use-workspace-id";
 import { cn } from "@/lib/utils";
 import { useCreateProjectModal } from "@/features/projects/hooks/use-create-project-modal";
 import { ProjectAvatar } from "@/features/projects/components/project-avatar";
@@ -13,8 +12,7 @@ import { ProjectAvatar } from "@/features/projects/components/project-avatar";
 export const Projects = () => {
   const pathname = usePathname();
   const { open } = useCreateProjectModal();
-  const workspaceId = useWorkspaceId();
-  const { data } = useGetProjects({ workspaceId });
+  const { data } = useGetProjects({});
 
   return (
     <div className="flex flex-col gap-y-2">
@@ -27,8 +25,8 @@ export const Projects = () => {
       </div>
       {data?.documents.map((project) => {
         // Link to tasks page with projectId filter
-        const href = `/workspaces/${workspaceId}/tasks?projectId=${project.id}`;
-        const isActive = pathname.includes(`projectId=${project.id}`) || pathname === `/workspaces/${workspaceId}/projects/${project.id}`;
+        const href = `/tasks?projectId=${project.id}`;
+        const isActive = pathname.includes(`projectId=${project.id}`);
 
         return (
           <Link key={project.id} href={href}>

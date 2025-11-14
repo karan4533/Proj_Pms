@@ -16,6 +16,7 @@ export const useCurrent = () => {
 
       return data;
     },
+    staleTime: 0, // Always consider data stale so it refetches after invalidation
   });
 
   return query;

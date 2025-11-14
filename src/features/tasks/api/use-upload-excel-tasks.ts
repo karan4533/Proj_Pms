@@ -3,7 +3,7 @@ import { toast } from "sonner";
 
 interface UploadExcelTasksProps {
   file: File;
-  workspaceId: string;
+  workspaceId?: string | null;
   projectId: string;
 }
 
@@ -15,7 +15,9 @@ export const useUploadExcelTasks = () => {
       try {
         const formData = new FormData();
         formData.append('file', file);
-        formData.append('workspaceId', workspaceId);
+        if (workspaceId) {
+          formData.append('workspaceId', workspaceId);
+        }
         formData.append('projectId', projectId);
 
         console.log('📤 Uploading file:', {

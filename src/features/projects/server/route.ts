@@ -4,8 +4,6 @@ import { Hono } from "hono";
 import { z } from "zod";
 import { eq, and, desc, gte, lte, inArray } from "drizzle-orm";
 
-import { getMember } from "@/features/members/utils";
-import { MemberRole } from "@/features/members/types";
 import { TaskStatus } from "@/features/tasks/types";
 import { sessionMiddleware } from "@/lib/session-middleware";
 import { db } from "@/db";
@@ -20,21 +18,10 @@ const app = new Hono()
     zValidator("form", createProjectSchema),
     async (c) => {
       const user = c.get("user");
-      const { name, image, workspaceId } = c.req.valid("form");
+      const { name, image, workspaceId, postDate, tentativeEndDate, assignees } = c.req.valid("form");
 
-      const member = await getMember({
-        workspaceId,
-        userId: user.id,
-      });
-
-      if (!member) {
-        return c.json({ error: "Unauthorized" }, 401);
-      }
-
-      // RBAC: Only ADMIN can create projects
-      if (member.role !== MemberRole.ADMIN) {
-        return c.json({ error: "Forbidden: Only admins can create projects" }, 403);
-      }
+      // Project-centric: Any authenticated user can create projects
+      // No workspace membership check needed anymore
 
       let uploadedImageUrl: string | undefined;
       if (image instanceof File) {
@@ -46,7 +33,9 @@ const app = new Hono()
         .values({
           name,
           imageUrl: uploadedImageUrl,
-          workspaceId,
+          workspaceId: workspaceId || null,
+          postDate: postDate ? new Date(postDate) : null,
+          tentativeEndDate: tentativeEndDate ? new Date(tentativeEndDate) : null,
         })
         .returning();
 
@@ -61,24 +50,22 @@ const app = new Hono()
       const user = c.get("user");
       const { workspaceId } = c.req.valid("query");
 
-      if (!workspaceId) {
-        return c.json({ data: { documents: [], total: 0 } }, 200);
+      // Project-centric: Return all projects for authenticated user
+      // Optional workspaceId filter for legacy support
+      let projectList;
+      
+      if (workspaceId) {
+        projectList = await db
+          .select()
+          .from(projects)
+          .where(eq(projects.workspaceId, workspaceId))
+          .orderBy(desc(projects.createdAt));
+      } else {
+        projectList = await db
+          .select()
+          .from(projects)
+          .orderBy(desc(projects.createdAt));
       }
-
-      const member = await getMember({
-        workspaceId,
-        userId: user.id,
-      });
-
-      if (!member) {
-        return c.json({ error: "Unauthorized" }, 401);
-      }
-
-      const projectList = await db
-        .select()
-        .from(projects)
-        .where(eq(projects.workspaceId, workspaceId))
-        .orderBy(desc(projects.createdAt));
 
       return c.json({ data: { documents: projectList, total: projectList.length } });
     }
@@ -97,15 +84,7 @@ const app = new Hono()
       return c.json({ error: "Project not found" }, 404);
     }
 
-    const member = await getMember({
-      workspaceId: project.workspaceId,
-      userId: user.id,
-    });
-
-    if (!member) {
-      return c.json({ error: "Unauthorized" }, 401);
-    }
-
+    // Project-centric: Any authenticated user can view projects
     return c.json({ data: project });
   })
   .patch(
@@ -127,20 +106,7 @@ const app = new Hono()
         return c.json({ error: "Project not found" }, 404);
       }
 
-      const member = await getMember({
-        workspaceId: existingProject.workspaceId,
-        userId: user.id,
-      });
-
-      if (!member) {
-        return c.json({ error: "Unauthorized" }, 401);
-      }
-
-      // RBAC: Only ADMIN and PROJECT_MANAGER can edit projects
-      const allowedRoles = [MemberRole.ADMIN, MemberRole.PROJECT_MANAGER];
-      if (!allowedRoles.includes(member.role as MemberRole)) {
-        return c.json({ error: "Forbidden: Insufficient permissions to edit project" }, 403);
-      }
+      // Project-centric: Any authenticated user can edit projects
 
       let uploadedImageUrl: string | undefined;
       if (image instanceof File) {
@@ -176,19 +142,7 @@ const app = new Hono()
       return c.json({ error: "Project not found" }, 404);
     }
 
-    const member = await getMember({
-      workspaceId: existingProject.workspaceId,
-      userId: user.id,
-    });
-
-    if (!member) {
-      return c.json({ error: "Unauthorized" }, 401);
-    }
-
-    // RBAC: Only ADMIN can delete projects
-    if (member.role !== MemberRole.ADMIN) {
-      return c.json({ error: "Forbidden: Only admins can delete projects" }, 403);
-    }
+    // Project-centric: Any authenticated user can delete projects
 
     await db.delete(projects).where(eq(projects.id, projectId));
 
@@ -201,58 +155,32 @@ const app = new Hono()
       "json",
       z.object({
         projectIds: z.array(z.string()).min(1, "At least one project ID is required"),
-        workspaceId: z.string(),
       })
     ),
     async (c) => {
       const user = c.get("user");
-      const { projectIds, workspaceId } = c.req.valid("json");
+      const { projectIds } = c.req.valid("json");
 
-      console.log('🗑️ Bulk delete request:', { projectIds, workspaceId, userId: user.id });
+      console.log('🗑️ Bulk delete request:', { projectIds, userId: user.id });
 
-      // Verify user is member of workspace
-      const member = await getMember({
-        workspaceId,
-        userId: user.id,
-      });
-
-      if (!member) {
-        return c.json({ error: "Unauthorized" }, 401);
-      }
-
-      // RBAC: Only ADMIN can bulk delete projects
-      if (member.role !== MemberRole.ADMIN) {
-        return c.json({ 
-          error: "Forbidden: Only admins can delete projects" 
-        }, 403);
-      }
-
-      // Verify all projects belong to this workspace
+      // Project-centric: Any authenticated user can delete projects
+      
+      // Verify all projects exist
       const existingProjects = await db
         .select()
         .from(projects)
-        .where(
-          and(
-            inArray(projects.id, projectIds),
-            eq(projects.workspaceId, workspaceId)
-          )
-        );
+        .where(inArray(projects.id, projectIds));
 
       if (existingProjects.length !== projectIds.length) {
         return c.json({ 
-          error: "Some projects not found or don't belong to this workspace" 
+          error: "Some projects not found" 
         }, 404);
       }
 
       // Delete all projects (cascade will delete related tasks)
       await db
         .delete(projects)
-        .where(
-          and(
-            inArray(projects.id, projectIds),
-            eq(projects.workspaceId, workspaceId)
-          )
-        );
+        .where(inArray(projects.id, projectIds));
 
       console.log(`✅ Deleted ${projectIds.length} projects`);
 
@@ -278,15 +206,8 @@ const app = new Hono()
       return c.json({ error: "Project not found" }, 404);
     }
 
-    const member = await getMember({
-      workspaceId: project.workspaceId,
-      userId: user.id,
-    });
-
-    if (!member) {
-      return c.json({ error: "Unauthorized" }, 401);
-    }
-
+    // Project-centric: Any authenticated user can view analytics
+    
     const now = new Date();
     const thisMonthStart = startOfMonth(now);
     const thisMonthEnd = endOfMonth(now);

@@ -18,14 +18,12 @@ import {
 
 import { useBulkDeleteProjects } from "@/features/projects/api/use-bulk-delete-projects";
 import { Project } from "@/features/projects/types";
-import { useWorkspaceId } from "@/features/workspaces/hooks/use-workspace-id";
 
 interface BulkDeleteProjectsCardProps {
   projects: Project[];
 }
 
 export const BulkDeleteProjectsCard = ({ projects }: BulkDeleteProjectsCardProps) => {
-  const workspaceId = useWorkspaceId();
   const [selectedProjects, setSelectedProjects] = useState<string[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   
@@ -51,7 +49,6 @@ export const BulkDeleteProjectsCard = ({ projects }: BulkDeleteProjectsCardProps
     bulkDelete(
       {
         projectIds: selectedProjects,
-        workspaceId,
       },
       {
         onSuccess: () => {

@@ -124,7 +124,7 @@ const app = new Hono()
     zValidator(
       "query",
       z.object({
-        workspaceId: z.string(),
+        workspaceId: z.string().optional(),
         projectId: z.string().nullish(),
         assigneeId: z.string().nullish(),
         status: z.nativeEnum(TaskStatus).nullish(),
@@ -139,17 +139,25 @@ const app = new Hono()
       const { workspaceId, projectId, assigneeId, status, search, dueDate, limit, offset } =
         c.req.valid("query");
 
-      const member = await getMember({
-        workspaceId,
-        userId: user.id,
-      });
+      // If workspaceId is provided, check membership (legacy support)
+      if (workspaceId) {
+        const member = await getMember({
+          workspaceId,
+          userId: user.id,
+        });
 
-      if (!member) {
-        return c.json({ error: "Unauthorized" }, 401);
+        if (!member) {
+          return c.json({ error: "Unauthorized" }, 401);
+        }
       }
 
       // Build where conditions
-      const conditions = [eq(tasks.workspaceId, workspaceId)];
+      const conditions = [];
+      
+      // Only filter by workspace if provided (legacy support)
+      if (workspaceId) {
+        conditions.push(eq(tasks.workspaceId, workspaceId));
+      }
 
       if (projectId) {
         conditions.push(eq(tasks.projectId, projectId));
@@ -505,11 +513,11 @@ const app = new Hono()
         const formData = await c.req.formData();
         
         const file = formData.get('file') as File;
-        const workspaceId = formData.get('workspaceId') as string;
+        const workspaceId = formData.get('workspaceId') as string | null;
         const projectId = formData.get('projectId') as string;
 
         console.log('📁 File:', file?.name, 'Size:', file?.size);
-        console.log('🏢 Workspace:', workspaceId);
+        console.log('🏢 Workspace:', workspaceId || 'N/A (project-centric)');
         console.log('📊 Project:', projectId);
 
         if (!file) {
@@ -525,22 +533,12 @@ const app = new Hono()
           }, 400);
         }
 
-        if (!workspaceId || !projectId) {
-          return c.json({ error: "Workspace ID and Project ID are required" }, 400);
+        if (!projectId) {
+          return c.json({ error: "Project ID is required" }, 400);
         }
 
-        // Verify user is member of workspace
-        const member = await getMember({
-          workspaceId,
-          userId: user.id,
-        });
-
-        if (!member) {
-          console.error('❌ User not a member of workspace');
-          return c.json({ error: "Unauthorized - You must be a member of this workspace" }, 401);
-        }
-
-        console.log('✅ User is workspace member');
+        // Project-centric: Any authenticated user can upload tasks
+        console.log('✅ User authenticated');
 
         // Get project to verify it exists
         const [project] = await db
@@ -823,7 +821,7 @@ const app = new Hono()
             resolved: parsedResolved || null,
             description: description || '',
             projectId: csvProjectId || projectId, // Use CSV project ID if provided, else use selected
-            workspaceId: csvWorkspaceId || workspaceId, // Use CSV workspace ID if provided, else use selected
+            workspaceId: csvWorkspaceId || (workspaceId && workspaceId !== 'default' ? workspaceId : null), // Use CSV workspace ID if provided, else use selected (or null if 'default')
             dueDate: parsedDueDate,
             estimatedHours: parsedEstimatedHours,
             actualHours: parsedActualHours,

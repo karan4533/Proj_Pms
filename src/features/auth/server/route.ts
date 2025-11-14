@@ -3,6 +3,7 @@ import { zValidator } from "@hono/zod-validator";
 import { deleteCookie, setCookie } from "hono/cookie";
 import { compare, hash } from "bcryptjs";
 import { randomBytes } from "crypto";
+import { z } from "zod";
 
 import { loginSchema, registerSchema } from "../schemas";
 import { AUTH_COOKIE } from "../constants";
@@ -10,6 +11,13 @@ import { sessionMiddleware } from "@/lib/session-middleware";
 import { db } from "@/db";
 import { users, sessions } from "@/db/schema";
 import { eq } from "drizzle-orm";
+
+const updateProfileSchema = z.object({
+  native: z.string().optional(),
+  mobileNo: z.string().optional(),
+  experience: z.number().optional(),
+  skills: z.array(z.string()).optional(),
+});
 
 const app = new Hono()
   .get("/current", sessionMiddleware, (c) => {
@@ -100,6 +108,22 @@ const app = new Hono()
     deleteCookie(c, AUTH_COOKIE);
 
     return c.json({ success: true });
+  })
+  .patch("/profile", sessionMiddleware, zValidator("json", updateProfileSchema), async (c) => {
+    const user = c.get("user");
+    const updates = c.req.valid("json");
+
+    // Update user profile
+    const [updatedUser] = await db
+      .update(users)
+      .set({
+        ...updates,
+        updatedAt: new Date(),
+      })
+      .where(eq(users.id, user.id))
+      .returning();
+
+    return c.json({ data: updatedUser });
   });
 
 export default app;

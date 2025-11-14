@@ -24,12 +24,12 @@ import { useGetAttendanceRecords } from "../api/use-attendance";
 import { useGetProjects } from "@/features/projects/api/use-get-projects";
 
 interface AttendanceRecordsProps {
-  workspaceId: string;
+  workspaceId?: string;
 }
 
-export const AttendanceRecords = ({ workspaceId }: AttendanceRecordsProps) => {
+export const AttendanceRecords = ({ workspaceId }: AttendanceRecordsProps = {}) => {
   const { data: records, isLoading } = useGetAttendanceRecords(workspaceId);
-  const { data: projects } = useGetProjects({ workspaceId });
+  const { data: projects } = useGetProjects({});
   
   const [selectedRecord, setSelectedRecord] = useState<any>(null);
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
@@ -65,7 +65,7 @@ export const AttendanceRecords = ({ workspaceId }: AttendanceRecordsProps) => {
     if (!records || records.length === 0) return;
 
     const headers = ["Date", "Employee Name", "Email", "Start Time", "End Time", "Duration", "Status", "End Activity", "Tasks"];
-    const rows = records.map((record) => [
+    const rows = records.map((record: any) => [
       formatDate(record.shiftStartTime),
       record.userName || "N/A",
       record.userEmail || "N/A",
@@ -79,7 +79,7 @@ export const AttendanceRecords = ({ workspaceId }: AttendanceRecordsProps) => {
 
     const csv = [
       headers.join(","),
-      ...rows.map((row) => row.map((cell) => `"${cell}"`).join(",")),
+      ...rows.map((row: any) => row.map((cell: any) => `"${cell}"`).join(",")),
     ].join("\n");
 
     const blob = new Blob([csv], { type: "text/csv" });
@@ -144,15 +144,15 @@ export const AttendanceRecords = ({ workspaceId }: AttendanceRecordsProps) => {
                   <TableHead>Status</TableHead>
                   <TableHead>Daily Tasks</TableHead>
                 </TableRow>
-              </TableHeader>
-              <TableBody>
-                {records.map((record) => (
-                  <TableRow key={record.id}>
-                    <TableCell className="font-medium">
-                      {formatDate(record.shiftStartTime)}
-                    </TableCell>
-                    <TableCell className="font-medium">
-                      {record.userName || "Unknown User"}
+            </TableHeader>
+            <TableBody>
+              {records.map((record: any) => (
+                <TableRow key={record.id}>
+                  <TableCell className="font-medium">
+                    {formatDate(record.shiftStartTime)}
+                  </TableCell>
+                  <TableCell className="font-medium">
+                    {record.userName || "Unknown User"}
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">
                       {record.userEmail || "N/A"}

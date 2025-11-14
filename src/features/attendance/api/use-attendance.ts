@@ -64,12 +64,14 @@ export const useEndShift = () => {
 };
 
 // Get Active Shift
-export const useGetActiveShift = (workspaceId: string) => {
+export const useGetActiveShift = (workspaceId?: string) => {
+  const effectiveWorkspaceId = workspaceId || "default-workspace";
+  
   const query = useQuery({
-    queryKey: ["active-shift", workspaceId],
+    queryKey: ["active-shift", effectiveWorkspaceId],
     queryFn: async () => {
       const response = await client.api.attendance["active-shift"][":workspaceId"].$get({
-        param: { workspaceId },
+        param: { workspaceId: effectiveWorkspaceId },
       });
 
       if (!response.ok) {
@@ -85,12 +87,14 @@ export const useGetActiveShift = (workspaceId: string) => {
 };
 
 // Get Attendance Records (Admin only)
-export const useGetAttendanceRecords = (workspaceId: string) => {
+export const useGetAttendanceRecords = (workspaceId?: string) => {
+  const effectiveWorkspaceId = workspaceId || "default-workspace";
+  
   const query = useQuery({
-    queryKey: ["attendance", workspaceId],
+    queryKey: ["attendance", effectiveWorkspaceId],
     queryFn: async () => {
       const response = await client.api.attendance[":workspaceId"].$get({
-        param: { workspaceId },
+        param: { workspaceId: effectiveWorkspaceId },
       });
 
       if (!response.ok) {
@@ -106,12 +110,14 @@ export const useGetAttendanceRecords = (workspaceId: string) => {
 };
 
 // Get My Attendance History
-export const useGetMyAttendance = (workspaceId: string) => {
+export const useGetMyAttendance = (workspaceId?: string) => {
+  const effectiveWorkspaceId = workspaceId || "default-workspace";
+  
   const query = useQuery({
-    queryKey: ["my-attendance", workspaceId],
+    queryKey: ["my-attendance", effectiveWorkspaceId],
     queryFn: async () => {
       const response = await client.api.attendance["my-attendance"][":workspaceId"].$get({
-        param: { workspaceId },
+        param: { workspaceId: effectiveWorkspaceId },
       });
 
       if (!response.ok) {

@@ -3,15 +3,15 @@ import { useQuery } from "@tanstack/react-query";
 import { client } from "@/lib/rpc";
 
 interface UseGetProjectsProps {
-  workspaceId: string;
+  workspaceId?: string;
 }
 
-export const useGetProjects = ({ workspaceId }: UseGetProjectsProps, options?: { enabled?: boolean }) => {
+export const useGetProjects = ({ workspaceId }: UseGetProjectsProps = {}, options?: { enabled?: boolean }) => {
   const query = useQuery({
     queryKey: ["projects", workspaceId],
     queryFn: async () => {
       const response = await client.api.projects.$get({
-        query: { workspaceId },
+        query: workspaceId ? { workspaceId } : {},
       });
 
       if (!response.ok) {
@@ -22,7 +22,7 @@ export const useGetProjects = ({ workspaceId }: UseGetProjectsProps, options?: {
 
       return data;
     },
-    enabled: workspaceId !== "" && (options?.enabled !== false),
+    enabled: options?.enabled !== false,
   });
 
   return query;

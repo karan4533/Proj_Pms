@@ -4,6 +4,7 @@ import { Analytics } from "@/components/analytics";
 import { DottedSeparator } from "@/components/dotted-separator";
 import { ExcelUploadCard } from "@/components/excel-upload-card";
 import { BulkDeleteProjectsCard } from "@/components/bulk-delete-projects-card";
+import { DashboardCharts } from "@/components/dashboard-charts";
 import { PageError } from "@/components/page-error";
 import { PageLoader } from "@/components/page-loader";
 import { Button } from "@/components/ui/button";
@@ -68,6 +69,9 @@ export const WorkspaceIdClient = () => {
   return (
     <div className="h-full flex flex-col space-y-4">
       <Analytics data={analytics} />
+      
+      {/* Dashboard Charts with Filters */}
+      <DashboardCharts />
       
       {/* Excel Upload and Bulk Delete Cards - Side by Side */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">

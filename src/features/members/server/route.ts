@@ -83,11 +83,35 @@ const app = new Hono()
   .get(
     "/",
     sessionMiddleware,
-    zValidator("query", z.object({ workspaceId: z.string() })),
+    zValidator("query", z.object({ workspaceId: z.string().optional() })),
     async (c) => {
       const user = c.get("user");
       const { workspaceId } = c.req.valid("query");
 
+      // If no workspaceId, return all users (removing workspace concept)
+      if (!workspaceId) {
+        const membersList = await db
+          .select({
+            id: users.id,
+            userId: users.id,
+            workspaceId: users.id, // Placeholder for compatibility
+            role: users.id, // Placeholder
+            createdAt: users.createdAt,
+            updatedAt: users.updatedAt,
+            name: users.name,
+            email: users.email,
+          })
+          .from(users);
+
+        return c.json({
+          data: {
+            documents: membersList,
+            total: membersList.length,
+          },
+        });
+      }
+
+      // Legacy support: filter by workspace if provided
       const member = await getMember({
         workspaceId,
         userId: user.id,

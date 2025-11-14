@@ -42,6 +42,15 @@ export const sessionMiddleware = createMiddleware<AdditionalContext>(
           password: users.password,
           createdAt: users.createdAt,
           updatedAt: users.updatedAt,
+          // Profile fields
+          dateOfBirth: users.dateOfBirth,
+          native: users.native,
+          mobileNo: users.mobileNo,
+          designation: users.designation,
+          department: users.department,
+          experience: users.experience,
+          dateOfJoining: users.dateOfJoining,
+          skills: users.skills,
         }
       })
       .from(sessions)

@@ -14,6 +14,14 @@ export const users = pgTable('users', {
   timezone: text('timezone').default('UTC'),
   isActive: boolean('is_active').default(true),
   lastLoginAt: timestamp('last_login_at'),
+  // Profile fields
+  dateOfBirth: timestamp('date_of_birth'),
+  native: text('native'), // Native place/hometown
+  mobileNo: text('mobile_no'), // Mobile number
+  designation: text('designation'), // Job designation
+  experience: integer('experience'), // Years of experience
+  dateOfJoining: timestamp('date_of_joining'), // Date of joining company
+  skills: jsonb('skills').$type<string[]>().default([]), // Array of skills
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 }, (table) => ({

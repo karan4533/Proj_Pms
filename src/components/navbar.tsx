@@ -1,7 +1,6 @@
 "use client";
 
 import { UserButton } from "@/features/auth/components/user-button";
-import { ModeToggle } from "@/components/mode-toggle";
 
 import { usePathname } from "next/navigation";
 
@@ -37,10 +36,7 @@ export const Navbar = () => {
         <p className="text-muted-foreground">{description}</p>
       </div>
       <MobileSidebar />
-      <div className="flex items-center gap-2">
-        <ModeToggle />
-        <UserButton />
-      </div>
+      <UserButton />
     </nav>
   );
 };

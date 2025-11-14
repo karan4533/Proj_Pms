@@ -5,7 +5,7 @@ import { client } from "@/lib/rpc";
 import { TaskStatus } from "../types";
 
 interface UseGetTasksProps {
-  workspaceId: string;
+  workspaceId?: string;
   projectId?: string | null;
   status?: TaskStatus | null;
   assigneeId?: string | null;
@@ -34,7 +34,7 @@ export const useGetTasks = ({
     queryFn: async () => {
       const response = await client.api.tasks.$get({
         query: {
-          workspaceId,
+          workspaceId: workspaceId ?? undefined,
           projectId: projectId ?? undefined,
           status: status ?? undefined,
           assigneeId: assigneeId ?? undefined,

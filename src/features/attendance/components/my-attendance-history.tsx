@@ -25,12 +25,12 @@ import { useGetMyAttendance, useUpdateTasks } from "../api/use-attendance";
 import { useGetProjects } from "@/features/projects/api/use-get-projects";
 
 interface MyAttendanceHistoryProps {
-  workspaceId: string;
+  workspaceId?: string;
 }
 
-export const MyAttendanceHistory = ({ workspaceId }: MyAttendanceHistoryProps) => {
+export const MyAttendanceHistory = ({ workspaceId }: MyAttendanceHistoryProps = {}) => {
   const { data: records, isLoading } = useGetMyAttendance(workspaceId);
-  const { data: projects } = useGetProjects({ workspaceId });
+  const { data: projects } = useGetProjects({});
   const updateTasks = useUpdateTasks();
   
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -101,7 +101,7 @@ export const MyAttendanceHistory = ({ workspaceId }: MyAttendanceHistoryProps) =
     if (!records || records.length === 0) return;
 
     const headers = ["Date", "Start Time", "End Time", "Duration", "Status", "End Activity", "Tasks"];
-    const rows = records.map((record) => [
+    const rows = records.map((record: any) => [
       formatDate(record.shiftStartTime),
       formatTime(record.shiftStartTime),
       record.shiftEndTime ? formatTime(record.shiftEndTime) : "In Progress",
@@ -113,7 +113,7 @@ export const MyAttendanceHistory = ({ workspaceId }: MyAttendanceHistoryProps) =
 
     const csv = [
       headers.join(","),
-      ...rows.map((row) => row.map((cell) => `"${cell}"`).join(",")),
+      ...rows.map((row: any) => row.map((cell: any) => `"${cell}"`).join(",")),
     ].join("\n");
 
     const blob = new Blob([csv], { type: "text/csv" });

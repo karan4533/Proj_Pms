@@ -2,19 +2,22 @@
 
 import { z } from "zod";
 import Image from "next/image";
-import { ImageIcon } from "lucide-react";
-import { useRef } from "react";
+import { ImageIcon, CalendarIcon, X } from "lucide-react";
+import { useRef, useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { useRouter } from "next/navigation";
+import { format } from "date-fns";
 
-import { useWorkspaceId } from "@/features/workspaces/hooks/use-workspace-id";
+import { useGetMembers } from "@/features/members/api/use-get-members";
 
 import { cn } from "@/lib/utils";
 import { DottedSeparator } from "@/components/dotted-separator";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Form,
   FormControl,
@@ -24,6 +27,14 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
 
 import { createProjectSchema } from "../schemas";
 import { useCreateProject } from "../api/use-create-project";
@@ -33,24 +44,29 @@ interface CreateProjectFormProps {
 }
 
 export const CreateProjectForm = ({ onCancel }: CreateProjectFormProps) => {
-  const workspaceId = useWorkspaceId();
   const router = useRouter();
   const { mutate, isPending } = useCreateProject();
+  const { data: membersData } = useGetMembers({});
+  const [selectedAssignees, setSelectedAssignees] = useState<string[]>([]);
 
+  const members = membersData?.documents || [];
   const inputRef = useRef<HTMLInputElement>(null);
 
   const form = useForm<z.infer<typeof createProjectSchema>>({
-    resolver: zodResolver(createProjectSchema.omit({ workspaceId: true })),
+    resolver: zodResolver(createProjectSchema),
     defaultValues: {
       name: "",
+      postDate: undefined,
+      tentativeEndDate: undefined,
+      assignees: [],
     },
   });
 
   const onSubmit = (values: z.infer<typeof createProjectSchema>) => {
     const finalValues = {
       ...values,
-      workspaceId,
       image: values.image instanceof File ? values.image : "",
+      assignees: selectedAssignees,
     };
 
     mutate(
@@ -58,10 +74,21 @@ export const CreateProjectForm = ({ onCancel }: CreateProjectFormProps) => {
       {
         onSuccess: ({ data }) => {
           form.reset();
-          router.push(`/workspaces/${workspaceId}/projects/${data.id}`);
+          setSelectedAssignees([]);
+          router.push(`/tasks?projectId=${data.id}`);
         },
       }
     );
+  };
+
+  const handleAddAssignee = (userId: string) => {
+    if (!selectedAssignees.includes(userId)) {
+      setSelectedAssignees([...selectedAssignees, userId]);
+    }
+  };
+
+  const handleRemoveAssignee = (userId: string) => {
+    setSelectedAssignees(selectedAssignees.filter((id) => id !== userId));
   };
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -98,6 +125,115 @@ export const CreateProjectForm = ({ onCancel }: CreateProjectFormProps) => {
                   </FormItem>
                 )}
               />
+              
+              <FormField
+                control={form.control}
+                name="postDate"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Post Date</FormLabel>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <FormControl>
+                          <Button
+                            variant="outline"
+                            className={cn(
+                              "w-full justify-start text-left font-normal",
+                              !field.value && "text-muted-foreground"
+                            )}
+                          >
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {field.value ? format(new Date(field.value), "PPP") : <span>Pick a date</span>}
+                          </Button>
+                        </FormControl>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={field.value ? new Date(field.value) : undefined}
+                          onSelect={(date) => field.onChange(date?.toISOString())}
+                          disabled={(date) => date < new Date("1900-01-01")}
+                        />
+                      </PopoverContent>
+                    </Popover>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="tentativeEndDate"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Tentative End Date</FormLabel>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <FormControl>
+                          <Button
+                            variant="outline"
+                            className={cn(
+                              "w-full justify-start text-left font-normal",
+                              !field.value && "text-muted-foreground"
+                            )}
+                          >
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {field.value ? format(new Date(field.value), "PPP") : <span>Pick a date</span>}
+                          </Button>
+                        </FormControl>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={field.value ? new Date(field.value) : undefined}
+                          onSelect={(date) => field.onChange(date?.toISOString())}
+                          disabled={(date) => date < new Date("1900-01-01")}
+                        />
+                      </PopoverContent>
+                    </Popover>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <div className="space-y-2">
+                <FormLabel>Assignees</FormLabel>
+                <Select onValueChange={handleAddAssignee} disabled={isPending}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Add team members" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {members.map((member: any) => (
+                      <SelectItem 
+                        key={member.userId} 
+                        value={member.userId}
+                        disabled={selectedAssignees.includes(member.userId)}
+                      >
+                        {member.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {selectedAssignees.map((userId) => {
+                    const member = members.find((m: any) => m.userId === userId);
+                    return (
+                      <Badge key={userId} variant="secondary" className="gap-1">
+                        {member?.name || "Unknown"}
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveAssignee(userId)}
+                          className="ml-1 hover:text-red-500"
+                          disabled={isPending}
+                        >
+                          <X className="size-3" />
+                        </button>
+                      </Badge>
+                    );
+                  })}
+                </div>
+              </div>
+
               <FormField
                 control={form.control}
                 name="image"
