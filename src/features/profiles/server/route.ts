@@ -1,0 +1,211 @@
+import { Hono } from "hono";
+import { zValidator } from "@hono/zod-validator";
+import { z } from "zod";
+import bcrypt from "bcryptjs";
+import { db } from "@/db";
+import { users } from "@/db/schema";
+import { sessionMiddleware } from "@/lib/session-middleware";
+import { eq } from "drizzle-orm";
+
+const app = new Hono()
+  .post(
+    "/",
+    sessionMiddleware,
+    zValidator(
+      "json",
+      z.object({
+        name: z.string().min(2),
+        email: z.string().email(),
+        password: z.string().min(6),
+        mobileNo: z.string().optional(),
+        native: z.string().optional(),
+        designation: z.string().optional(),
+        department: z.string().optional(),
+        experience: z.number().optional(),
+        dateOfBirth: z.string().optional(),
+        dateOfJoining: z.string().optional(),
+        skills: z.array(z.string()).optional(),
+      })
+    ),
+    async (c) => {
+      const user = c.get("user");
+
+      try {
+        const data = c.req.valid("json");
+
+        // Hash the password
+        const hashedPassword = await bcrypt.hash(data.password, 10);
+
+        // Prepare insert values - only include skills if provided
+        const insertValues: any = {
+          name: data.name,
+          email: data.email.toLowerCase(),
+          password: hashedPassword,
+          mobileNo: data.mobileNo || null,
+          native: data.native || null,
+          designation: data.designation || null,
+          department: data.department || null,
+          experience: data.experience || null,
+          dateOfBirth: data.dateOfBirth ? new Date(data.dateOfBirth) : null,
+          dateOfJoining: data.dateOfJoining ? new Date(data.dateOfJoining) : null,
+        };
+
+        // Only add skills if provided and not empty
+        if (data.skills && data.skills.length > 0) {
+          insertValues.skills = data.skills;
+        }
+
+        // Insert the new user
+        const [newUser] = await db
+          .insert(users)
+          .values(insertValues)
+          .returning();
+
+        return c.json({ data: newUser });
+      } catch (error: any) {
+        if (error.code === "23505") {
+          // Unique constraint violation
+          return c.json({ error: "Email already exists" }, 409);
+        }
+        console.error("Error creating profile:", error);
+        return c.json({ error: error.message || "Internal server error" }, 500);
+      }
+    }
+  )
+  .get("/", sessionMiddleware, async (c) => {
+    try {
+      const allProfiles = await db
+        .select({
+          id: users.id,
+          name: users.name,
+          email: users.email,
+          mobileNo: users.mobileNo,
+          native: users.native,
+          designation: users.designation,
+          department: users.department,
+          experience: users.experience,
+          dateOfBirth: users.dateOfBirth,
+          dateOfJoining: users.dateOfJoining,
+          skills: users.skills,
+        })
+        .from(users);
+
+      return c.json({ data: allProfiles });
+    } catch (error: any) {
+      console.error("Error fetching profiles:", error);
+      return c.json({ error: error.message || "Internal server error" }, 500);
+    }
+  })
+  .get("/:userId", sessionMiddleware, async (c) => {
+    try {
+      const userId = c.req.param("userId");
+
+      const [profile] = await db
+        .select({
+          id: users.id,
+          name: users.name,
+          email: users.email,
+          mobileNo: users.mobileNo,
+          native: users.native,
+          designation: users.designation,
+          department: users.department,
+          experience: users.experience,
+          dateOfBirth: users.dateOfBirth,
+          dateOfJoining: users.dateOfJoining,
+          skills: users.skills,
+        })
+        .from(users)
+        .where(eq(users.id, userId));
+
+      if (!profile) {
+        return c.json({ error: "Profile not found" }, 404);
+      }
+
+      return c.json({ data: profile });
+    } catch (error: any) {
+      console.error("Error fetching profile:", error);
+      return c.json({ error: error.message || "Internal server error" }, 500);
+    }
+  })
+  .patch(
+    "/:userId",
+    sessionMiddleware,
+    zValidator(
+      "json",
+      z.object({
+        name: z.string().min(2).optional(),
+        email: z.string().email().optional(),
+        mobileNo: z.string().optional(),
+        native: z.string().optional(),
+        designation: z.string().optional(),
+        department: z.string().optional(),
+        experience: z.number().optional(),
+        dateOfBirth: z.string().optional(),
+        dateOfJoining: z.string().optional(),
+        skills: z.array(z.string()).optional(),
+      })
+    ),
+    async (c) => {
+      try {
+        const userId = c.req.param("userId");
+        const data = c.req.valid("json");
+
+        // Prepare update values
+        const updateValues: any = {};
+
+        if (data.name) updateValues.name = data.name;
+        if (data.email) updateValues.email = data.email.toLowerCase();
+        if (data.mobileNo !== undefined) updateValues.mobileNo = data.mobileNo || null;
+        if (data.native !== undefined) updateValues.native = data.native || null;
+        if (data.designation !== undefined) updateValues.designation = data.designation || null;
+        if (data.department !== undefined) updateValues.department = data.department || null;
+        if (data.experience !== undefined) updateValues.experience = data.experience || null;
+        if (data.dateOfBirth !== undefined)
+          updateValues.dateOfBirth = data.dateOfBirth ? new Date(data.dateOfBirth) : null;
+        if (data.dateOfJoining !== undefined)
+          updateValues.dateOfJoining = data.dateOfJoining ? new Date(data.dateOfJoining) : null;
+        if (data.skills !== undefined) {
+          updateValues.skills = data.skills.length > 0 ? data.skills : null;
+        }
+
+        const [updatedUser] = await db
+          .update(users)
+          .set(updateValues)
+          .where(eq(users.id, userId))
+          .returning();
+
+        if (!updatedUser) {
+          return c.json({ error: "Profile not found" }, 404);
+        }
+
+        return c.json({ data: updatedUser });
+      } catch (error: any) {
+        if (error.code === "23505") {
+          return c.json({ error: "Email already exists" }, 409);
+        }
+        console.error("Error updating profile:", error);
+        return c.json({ error: error.message || "Internal server error" }, 500);
+      }
+    }
+  )
+  .delete("/:userId", sessionMiddleware, async (c) => {
+    try {
+      const userId = c.req.param("userId");
+
+      const [deletedUser] = await db
+        .delete(users)
+        .where(eq(users.id, userId))
+        .returning();
+
+      if (!deletedUser) {
+        return c.json({ error: "Profile not found" }, 404);
+      }
+
+      return c.json({ success: true, data: deletedUser });
+    } catch (error: any) {
+      console.error("Error deleting profile:", error);
+      return c.json({ error: error.message || "Internal server error" }, 500);
+    }
+  });
+
+export default app;

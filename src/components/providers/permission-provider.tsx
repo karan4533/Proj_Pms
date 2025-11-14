@@ -29,18 +29,18 @@ const PermissionContext = createContext<PermissionContextType | undefined>(undef
 
 interface PermissionProviderProps {
   children: ReactNode;
-  role: MemberRole;
-  userId: string;
-  workspaceId: string;
+  role?: MemberRole;
+  userId?: string;
+  workspaceId?: string;
   userProjects?: string[];
   teamMemberIds?: string[];
 }
 
 export function PermissionProvider({
   children,
-  role,
-  userId,
-  workspaceId,
+  role = MemberRole.ADMIN,
+  userId = "",
+  workspaceId = "",
   userProjects = [],
   teamMemberIds = [],
 }: PermissionProviderProps) {

@@ -8,7 +8,7 @@ export const createTaskSchema = z.object({
   issueType: z.nativeEnum(IssueType).optional(),
   status: z.nativeEnum(TaskStatus, { required_error: "Required" }),
   projectName: z.string().trim().min(1, "Required"),
-  workspaceId: z.string().trim().min(1, "Required"),
+  workspaceId: z.string().optional(),
   projectId: z.string().trim().min(1, "Required"),
   dueDate: z.coerce.date().optional(),
   assigneeId: z.string().trim().min(1, "Required"),

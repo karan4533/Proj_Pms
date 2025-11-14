@@ -8,6 +8,8 @@ import projects from "@/features/projects/server/route";
 import tasks from "@/features/tasks/server/route";
 import invitations from "@/features/invitations/server/route";
 import attendance from "@/features/attendance/server/route";
+import profiles from "@/features/profiles/server/route";
+import profilesBulkUpload from "@/features/profiles/server/bulk-upload-route";
 
 const app = new Hono().basePath("/api");
 
@@ -19,7 +21,9 @@ const routes = app
   .route("/projects", projects)
   .route("/tasks", tasks)
   .route("/invitations", invitations)
-  .route("/attendance", attendance);
+  .route("/attendance", attendance)
+  .route("/profiles", profiles)
+  .route("/profiles/bulk-upload", profilesBulkUpload);
 
 export const GET = handle(app);
 export const POST = handle(app);

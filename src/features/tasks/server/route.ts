@@ -246,27 +246,30 @@ const app = new Hono()
         labels,
       } = c.req.valid("json");
 
-      const member = await getMember({
-        workspaceId,
-        userId: user.id,
-      });
+      // Skip workspace checks since workspace concept removed
+      if (workspaceId) {
+        const member = await getMember({
+          workspaceId,
+          userId: user.id,
+        });
 
-      if (!member) {
-        return c.json({ error: "Unauthorized" }, 401);
+        if (!member) {
+          return c.json({ error: "Unauthorized" }, 401);
+        }
+
+        // RBAC: All roles except MANAGEMENT can create tasks
+        if (member.role === MemberRole.MANAGEMENT) {
+          return c.json({ error: "Forbidden: Management role cannot create tasks" }, 403);
+        }
       }
 
-      // RBAC: All roles except MANAGEMENT can create tasks
-      if (member.role === MemberRole.MANAGEMENT) {
-        return c.json({ error: "Forbidden: Management role cannot create tasks" }, 403);
-      }
-
-      // Get highest position
+      // Get highest position by projectId instead of workspaceId
       const [highestPositionTask] = await db
         .select()
         .from(tasks)
         .where(
           and(
-            eq(tasks.workspaceId, workspaceId),
+            eq(tasks.projectId, projectId),
             eq(tasks.status, status)
           )
         )
@@ -292,7 +295,7 @@ const app = new Hono()
           creatorId: creatorId || user.id,
           description,
           projectId,
-          workspaceId,
+          workspaceId: null,
           dueDate: dueDate ? new Date(dueDate) : null,
           estimatedHours,
           actualHours: 0,
