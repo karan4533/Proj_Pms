@@ -34,7 +34,7 @@ export default function AddProfilePage() {
               <CardHeader>
                 <CardTitle>Create New Profile</CardTitle>
                 <CardDescription>
-                  Add a new employee profile with all required detail
+                  Add a new employee profile with all required 
                 </CardDescription>
               </CardHeader>
               <CardContent>
