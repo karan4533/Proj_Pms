@@ -18,8 +18,14 @@ const app = new Hono()
         projectManagerId: z.string().uuid("Invalid project manager"),
         projectDescription: z.string().optional(),
         dueDate: z.string().optional(),
-        sampleInputFiles: z.array(z.string()).optional(),
-        expectedOutputFiles: z.array(z.string()).optional(),
+        sampleInputFiles: z.array(z.object({
+          name: z.string(),
+          content: z.string()
+        })).optional(),
+        expectedOutputFiles: z.array(z.object({
+          name: z.string(),
+          content: z.string()
+        })).optional(),
       })
     ),
     async (c) => {

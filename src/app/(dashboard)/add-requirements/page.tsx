@@ -27,6 +27,7 @@ import { useGetProfiles } from "@/features/requirements/api/use-get-profiles";
 interface FileUploadRow {
   id: string;
   file: File | null;
+  content?: string; // File content as base64 or text
 }
 
 export default function AddRequirementsPage() {
@@ -62,20 +63,56 @@ export default function AddRequirementsPage() {
     ]);
   };
 
-  const handleSampleFileChange = (id: string, file: File | null) => {
-    setSampleInputFiles(
-      sampleInputFiles.map((row) =>
-        row.id === id ? { ...row, file } : row
-      )
-    );
+  const handleSampleFileChange = async (id: string, file: File | null) => {
+    if (file) {
+      const content = await readFileContent(file);
+      setSampleInputFiles(
+        sampleInputFiles.map((row) =>
+          row.id === id ? { ...row, file, content } : row
+        )
+      );
+    } else {
+      setSampleInputFiles(
+        sampleInputFiles.map((row) =>
+          row.id === id ? { ...row, file: null, content: undefined } : row
+        )
+      );
+    }
   };
 
-  const handleOutputFileChange = (id: string, file: File | null) => {
-    setExpectedOutputFiles(
-      expectedOutputFiles.map((row) =>
-        row.id === id ? { ...row, file } : row
-      )
-    );
+  const handleOutputFileChange = async (id: string, file: File | null) => {
+    if (file) {
+      const content = await readFileContent(file);
+      setExpectedOutputFiles(
+        expectedOutputFiles.map((row) =>
+          row.id === id ? { ...row, file, content } : row
+        )
+      );
+    } else {
+      setExpectedOutputFiles(
+        expectedOutputFiles.map((row) =>
+          row.id === id ? { ...row, file: null, content: undefined } : row
+        )
+      );
+    }
+  };
+
+  const readFileContent = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      
+      // For text files (csv, txt, etc.)
+      if (file.type.includes('text') || file.name.endsWith('.csv') || file.name.endsWith('.txt')) {
+        reader.onload = (e) => resolve(e.target?.result as string);
+        reader.onerror = reject;
+        reader.readAsText(file);
+      } else {
+        // For other files, read as base64
+        reader.onload = (e) => resolve(e.target?.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      }
+    });
   };
 
   const handleRemoveSampleFile = (id: string) => {
@@ -103,14 +140,20 @@ export default function AddRequirementsPage() {
       return;
     }
 
-    // For now, we'll just store file names. In production, you'd upload files first
+    // Store file names and content
     const sampleFiles = sampleInputFiles
       .filter(row => row.file)
-      .map(row => row.file!.name);
+      .map(row => ({
+        name: row.file!.name,
+        content: row.content || ''
+      }));
     
     const outputFiles = expectedOutputFiles
       .filter(row => row.file)
-      .map(row => row.file!.name);
+      .map(row => ({
+        name: row.file!.name,
+        content: row.content || ''
+      }));
 
     createRequirement({
       tentativeTitle,

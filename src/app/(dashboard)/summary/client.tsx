@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useGetProjects } from "@/features/projects/api/use-get-projects";
 import { useGetRequirements } from "@/features/requirements/api/use-get-requirements";
 import { ProjectAvatar } from "@/features/projects/components/project-avatar";
@@ -10,11 +11,19 @@ import { Badge } from "@/components/ui/badge";
 import { PlusIcon, FolderKanban, FileText, Calendar, User } from "lucide-react";
 import Link from "next/link";
 import { format } from "date-fns";
+import { RequirementDetailsModal } from "@/features/requirements/components/requirement-details-modal";
 
 export const ProjectsClient = () => {
   const { data: projects, isLoading } = useGetProjects({});
   const { data: requirements, isLoading: isLoadingRequirements } = useGetRequirements();
   const { open } = useCreateProjectModal();
+  const [selectedRequirement, setSelectedRequirement] = useState<any>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  const handleRequirementClick = (requirement: any) => {
+    setSelectedRequirement(requirement);
+    setIsModalOpen(true);
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -138,7 +147,11 @@ export const ProjectsClient = () => {
         ) : requirements && requirements.length > 0 ? (
           <div className="grid gap-4">
             {requirements.map((req: any) => (
-              <Card key={req.id} className="hover:shadow-md transition-shadow">
+              <Card 
+                key={req.id} 
+                className="hover:shadow-md transition-shadow cursor-pointer"
+                onClick={() => handleRequirementClick(req)}
+              >
                 <CardHeader>
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex-1">
@@ -207,6 +220,12 @@ export const ProjectsClient = () => {
           </Card>
         )}
       </div>
+
+      <RequirementDetailsModal
+        requirement={selectedRequirement}
+        open={isModalOpen}
+        onOpenChange={setIsModalOpen}
+      />
     </div>
   );
 };
