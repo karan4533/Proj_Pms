@@ -3,7 +3,7 @@ import { pgTable, uuid, text, integer, timestamp, jsonb, index, uniqueIndex } fr
 // Users table
 export const users = pgTable('users', {
   id: uuid('id').primaryKey().defaultRandom(),
-  name: text('name').notNull(),
+  name: text('name').notNull().unique(),
   email: text('email').notNull().unique(),
   emailVerified: timestamp('email_verified'),
   image: text('image'),
@@ -11,7 +11,7 @@ export const users = pgTable('users', {
   // Profile fields
   dateOfBirth: timestamp('date_of_birth'),
   native: text('native'), // Native place/hometown
-  mobileNo: text('mobile_no'), // Mobile number
+  mobileNo: text('mobile_no').unique(), // Mobile number - unique
   designation: text('designation'), // Job designation
   department: text('department'), // Department
   experience: integer('experience'), // Years of experience
@@ -21,6 +21,8 @@ export const users = pgTable('users', {
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 }, (table) => ({
   emailIdx: index('email_idx').on(table.email),
+  nameIdx: index('name_idx').on(table.name),
+  mobileIdx: index('mobile_idx').on(table.mobileNo),
 }));
 
 // Accounts table (OAuth)
@@ -109,9 +111,9 @@ export const tasks = pgTable('tasks', {
   projectName: text('project_name').notNull(), // e.g., VECV-SPINE
   priority: text('priority').default('Medium'), // High, Medium, Low
   resolution: text('resolution'), // Done, Won't Fix, Duplicate, etc.
-  assigneeId: uuid('assignee_id').references(() => users.id),
-  reporterId: uuid('reporter_id').references(() => users.id),
-  creatorId: uuid('creator_id').references(() => users.id),
+  assigneeId: uuid('assignee_id').references(() => users.id, { onDelete: 'set null' }),
+  reporterId: uuid('reporter_id').references(() => users.id, { onDelete: 'set null' }),
+  creatorId: uuid('creator_id').references(() => users.id, { onDelete: 'set null' }),
   created: timestamp('created').defaultNow().notNull(),
   updated: timestamp('updated').defaultNow().notNull(),
   resolved: timestamp('resolved'),
@@ -126,7 +128,7 @@ export const tasks = pgTable('tasks', {
   // Upload tracking for batch operations
   uploadBatchId: text('upload_batch_id'), // Track which CSV upload this task came from (human-readable format)
   uploadedAt: timestamp('uploaded_at'), // When this task was uploaded
-  uploadedBy: uuid('uploaded_by').references(() => users.id), // Who uploaded this task
+  uploadedBy: uuid('uploaded_by').references(() => users.id, { onDelete: 'set null' }), // Who uploaded this task
   
   // Additional useful fields
   estimatedHours: integer('estimated_hours'),
@@ -174,7 +176,7 @@ export const invitations = pgTable('invitations', {
 export const attendance = pgTable('attendance', {
   id: uuid('id').primaryKey().defaultRandom(),
   userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
-  workspaceId: uuid('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
+  workspaceId: uuid('workspace_id').references(() => workspaces.id, { onDelete: 'set null' }), // Nullable - workspace concept removed
   projectId: uuid('project_id').references(() => projects.id, { onDelete: 'set null' }),
   shiftStartTime: timestamp('shift_start_time').notNull(),
   shiftEndTime: timestamp('shift_end_time'),
@@ -209,6 +211,7 @@ export const projectRequirements = pgTable('project_requirements', {
   customer: text('customer').notNull(),
   projectManagerId: uuid('project_manager_id').references(() => users.id),
   projectDescription: text('project_description'),
+  dueDate: timestamp('due_date'), // Due date for requirement
   sampleInputFiles: jsonb('sample_input_files').$type<string[]>().default([]), // Array of file URLs/paths
   expectedOutputFiles: jsonb('expected_output_files').$type<string[]>().default([]), // Array of file URLs/paths
   status: text('status').notNull().default('PENDING'), // PENDING, APPROVED, REJECTED
@@ -217,4 +220,5 @@ export const projectRequirements = pgTable('project_requirements', {
 }, (table) => ({
   projectManagerIdx: index('requirements_project_manager_idx').on(table.projectManagerId),
   statusIdx: index('requirements_status_idx').on(table.status),
+  dueDateIdx: index('requirements_due_date_idx').on(table.dueDate),
 }));

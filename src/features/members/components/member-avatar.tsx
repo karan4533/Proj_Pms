@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils";
+import { memo, useMemo } from "react";
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
@@ -8,11 +9,13 @@ interface MemberAvatarProps {
   fallbackClassName?: string;
 }
 
-export const MemberAvatar = ({
+export const MemberAvatar = memo(({
   name,
   className,
   fallbackClassName,
 }: MemberAvatarProps) => {
+  const initial = useMemo(() => name.charAt(0).toUpperCase(), [name]);
+  
   return (
     <Avatar
       className={cn(
@@ -26,8 +29,9 @@ export const MemberAvatar = ({
           fallbackClassName
         )}
       >
-        {name.charAt(0).toUpperCase()}
+        {initial}
       </AvatarFallback>
     </Avatar>
   );
-};
+});
+MemberAvatar.displayName = "MemberAvatar";

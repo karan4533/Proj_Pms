@@ -11,7 +11,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, Upload, X } from "lucide-react";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { Plus, Upload, X, CalendarIcon } from "lucide-react";
+import { format } from "date-fns";
+import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 import { useCreateRequirement } from "@/features/requirements/api/use-create-requirement";
 import { useGetProfiles } from "@/features/requirements/api/use-get-profiles";
@@ -30,6 +38,7 @@ export default function AddRequirementsPage() {
   const [customer, setCustomer] = useState("");
   const [projectManager, setProjectManager] = useState("");
   const [projectDescription, setProjectDescription] = useState("");
+  const [dueDate, setDueDate] = useState<Date | undefined>(undefined);
   
   const [sampleInputFiles, setSampleInputFiles] = useState<FileUploadRow[]>([
     { id: "sample-1", file: null },
@@ -108,6 +117,7 @@ export default function AddRequirementsPage() {
       customer,
       projectManagerId: projectManager,
       projectDescription,
+      dueDate: dueDate?.toISOString(),
       sampleInputFiles: sampleFiles,
       expectedOutputFiles: outputFiles,
     }, {
@@ -196,6 +206,37 @@ export default function AddRequirementsPage() {
                     )}
                   </SelectContent>
                 </Select>
+              </div>
+            </div>
+
+            {/* Due Date */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-center">
+              <label className="text-sm font-medium md:text-right">
+                Due Date
+              </label>
+              <div className="md:col-span-3">
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-full justify-start text-left font-normal",
+                        !dueDate && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {dueDate ? format(dueDate, "PPP") : "Select due date"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={dueDate}
+                      onSelect={setDueDate}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
               </div>
             </div>
 

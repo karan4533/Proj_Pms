@@ -17,6 +17,7 @@ const app = new Hono()
         customer: z.string().min(1, "Customer is required"),
         projectManagerId: z.string().uuid("Invalid project manager"),
         projectDescription: z.string().optional(),
+        dueDate: z.string().optional(),
         sampleInputFiles: z.array(z.string()).optional(),
         expectedOutputFiles: z.array(z.string()).optional(),
       })
@@ -32,6 +33,7 @@ const app = new Hono()
             customer: data.customer,
             projectManagerId: data.projectManagerId,
             projectDescription: data.projectDescription || null,
+            dueDate: data.dueDate ? new Date(data.dueDate) : null,
             sampleInputFiles: data.sampleInputFiles || [],
             expectedOutputFiles: data.expectedOutputFiles || [],
           })
@@ -53,6 +55,7 @@ const app = new Hono()
           customer: projectRequirements.customer,
           projectManagerId: projectRequirements.projectManagerId,
           projectDescription: projectRequirements.projectDescription,
+          dueDate: projectRequirements.dueDate,
           sampleInputFiles: projectRequirements.sampleInputFiles,
           expectedOutputFiles: projectRequirements.expectedOutputFiles,
           status: projectRequirements.status,

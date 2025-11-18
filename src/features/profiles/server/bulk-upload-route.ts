@@ -4,6 +4,7 @@ import * as XLSX from "xlsx";
 import { db } from "@/db";
 import { users } from "@/db/schema";
 import { sessionMiddleware } from "@/lib/session-middleware";
+import { or, eq, inArray } from "drizzle-orm";
 
 const app = new Hono().post("/", sessionMiddleware, async (c) => {
   const user = c.get("user");
@@ -130,18 +131,75 @@ const app = new Hono().post("/", sessionMiddleware, async (c) => {
       return c.json({ error: "No valid profiles to insert", details: errors }, 400);
     }
 
+    // Check for existing values in database
+    const namesToCheck = profiles.map(p => p.name);
+    const emailsToCheck = profiles.map(p => p.email);
+    const mobilesToCheck = profiles.map(p => p.mobileNo).filter(Boolean);
+
+    const existingUsers = await db
+      .select({ name: users.name, email: users.email, mobileNo: users.mobileNo })
+      .from(users)
+      .where(
+        or(
+          inArray(users.name, namesToCheck),
+          inArray(users.email, emailsToCheck),
+          mobilesToCheck.length > 0 ? inArray(users.mobileNo, mobilesToCheck) : undefined
+        )
+      );
+
+    const existingNames = new Set(existingUsers.map(u => u.name));
+    const existingEmails = new Set(existingUsers.map(u => u.email));
+    const existingMobiles = new Set(existingUsers.map(u => u.mobileNo).filter(Boolean));
+
+    // Filter out profiles with existing values
+    const newProfiles = profiles.filter(p => {
+      const issues = [];
+      
+      if (existingNames.has(p.name)) {
+        issues.push('name already exists');
+      }
+      if (existingEmails.has(p.email)) {
+        issues.push('email already exists');
+      }
+      if (p.mobileNo && existingMobiles.has(p.mobileNo)) {
+        issues.push('mobile number already exists');
+      }
+      
+      if (issues.length > 0) {
+        errors.push(`User "${p.name}" (${p.email}): ${issues.join(', ')}`);
+        return false;
+      }
+      return true;
+    });
+
+    if (newProfiles.length === 0) {
+      return c.json({
+        error: "All profiles already exist or have conflicts",
+        details: errors,
+        skipped: profiles.length
+      }, 409);
+    }
+
     // Insert profiles in batch
     try {
-      const insertedProfiles = await db.insert(users).values(profiles).returning();
+      const insertedProfiles = await db.insert(users).values(newProfiles).returning();
 
       return c.json({
         success: true,
         count: insertedProfiles.length,
+        skipped: profiles.length - newProfiles.length,
         errors: errors.length > 0 ? errors : undefined,
       });
     } catch (error: any) {
       if (error.code === "23505") {
-        return c.json({ error: "One or more email addresses already exist", details: errors }, 409);
+        // Extract which constraint failed
+        const constraintName = error.cause?.constraint_name || '';
+        let message = "Duplicate value found";
+        if (constraintName.includes('email')) message = "Duplicate email address";
+        else if (constraintName.includes('name')) message = "Duplicate name";
+        else if (constraintName.includes('mobile')) message = "Duplicate mobile number";
+        
+        return c.json({ error: message, details: errors }, 409);
       }
       throw error;
     }

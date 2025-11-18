@@ -26,17 +26,7 @@ export const useGetTasks = ({
   offset = 0,
 }: UseGetTasksProps) => {
   const query = useQuery({
-    queryKey: [
-      "tasks",
-      workspaceId,
-      projectId,
-      status,
-      assigneeId,
-      dueDate,
-      search,
-      limit,
-      offset,
-    ],
+    queryKey: ["tasks", workspaceId, projectId, status, assigneeId, dueDate, search, limit, offset],
     queryFn: async () => {
       const response = await client.api.tasks.$get({
         query: {
@@ -59,9 +49,9 @@ export const useGetTasks = ({
 
       return data;
     },
-    staleTime: 0, // Always refetch on mount
-    refetchOnWindowFocus: true, // Refetch when window regains focus
-    refetchOnMount: true, // Refetch on component mount
+    staleTime: 2 * 60 * 1000, // 2 minutes - prevents unnecessary refetches while editing
+    refetchOnWindowFocus: false, // Don't refetch on focus (saves API calls)
+    refetchOnMount: false, // Don't refetch if data is fresh
   });
 
   return query;

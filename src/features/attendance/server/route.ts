@@ -14,51 +14,54 @@ const app = new Hono()
     "/start-shift",
     sessionMiddleware,
     zValidator("json", z.object({
-      workspaceId: z.string(),
       projectId: z.string().optional(),
     })),
     async (c) => {
       const user = c.get("user");
-      const { workspaceId, projectId } = c.req.valid("json");
+      const { projectId } = c.req.valid("json");
+
+      console.log("Start shift request:", { userId: user?.id, projectId });
 
       if (!user) {
         return c.json({ error: "Unauthorized" }, 401);
       }
 
-      // Check if user is a member of the workspace
-      const member = await db.query.members.findFirst({
-        where: and(
-          eq(members.workspaceId, workspaceId),
-          eq(members.userId, user.id)
-        ),
-      });
+      try {
+        // Check if there's already an active shift
+        const activeShift = await db.query.attendance.findFirst({
+          where: and(
+            eq(attendance.userId, user.id),
+            eq(attendance.status, "IN_PROGRESS")
+          ),
+        });
 
-      if (!member) {
-        return c.json({ error: "Unauthorized" }, 401);
+        if (activeShift) {
+          console.log("User already has active shift:", activeShift.id);
+          return c.json({ error: "You already have an active shift" }, 400);
+        }
+
+        // Create new attendance record (workspaceId can be null)
+        const [newAttendance] = await db.insert(attendance).values({
+          userId: user.id,
+          workspaceId: null, // No workspace concept
+          projectId: projectId || null,
+          shiftStartTime: new Date(),
+          status: "IN_PROGRESS",
+        }).returning();
+
+        return c.json({ data: newAttendance });
+      } catch (error) {
+        console.error("Error in start-shift:", error);
+        console.error("Details:", {
+          userId: user.id,
+          projectId,
+          error: error instanceof Error ? error.message : String(error)
+        });
+        return c.json({ 
+          error: "Failed to start shift", 
+          details: error instanceof Error ? error.message : String(error)
+        }, 500);
       }
-
-      // Check if there's already an active shift (company-wide)
-      const activeShift = await db.query.attendance.findFirst({
-        where: and(
-          eq(attendance.userId, user.id),
-          eq(attendance.status, "IN_PROGRESS")
-        ),
-      });
-
-      if (activeShift) {
-        return c.json({ error: "You already have an active shift" }, 400);
-      }
-
-      // Create new attendance record
-      const [newAttendance] = await db.insert(attendance).values({
-        userId: user.id,
-        workspaceId,
-        projectId: projectId || null,
-        shiftStartTime: new Date(),
-        status: "IN_PROGRESS",
-      }).returning();
-
-      return c.json({ data: newAttendance });
     }
   )
   
@@ -122,17 +125,16 @@ const app = new Hono()
   
   // Get Active Shift
   .get(
-    "/active-shift/:workspaceId",
+    "/active-shift",
     sessionMiddleware,
     async (c) => {
       const user = c.get("user");
-      const { workspaceId } = c.req.param();
 
       if (!user) {
         return c.json({ error: "Unauthorized" }, 401);
       }
 
-      // Get active shift from ANY workspace (company-wide)
+      // Get active shift for current user
       const activeShift = await db.query.attendance.findFirst({
         where: and(
           eq(attendance.userId, user.id),
@@ -180,11 +182,10 @@ const app = new Hono()
   
   // Get My Attendance History (Employee's own records)
   .get(
-    "/my-attendance/:workspaceId",
+    "/my-attendance",
     sessionMiddleware,
     async (c) => {
       const user = c.get("user");
-      const { workspaceId } = c.req.param();
 
       if (!user) {
         return c.json({ error: "Unauthorized" }, 401);
@@ -268,11 +269,10 @@ const app = new Hono()
   
   // Get All Attendance Records (Admin only)
   .get(
-    "/:workspaceId",
+    "/records",
     sessionMiddleware,
     async (c) => {
       const user = c.get("user");
-      const { workspaceId } = c.req.param();
 
       if (!user) {
         return c.json({ error: "Unauthorized" }, 401);

@@ -9,12 +9,10 @@ type StartShiftRequestType = InferRequestType<typeof client.api.attendance["star
 
 export const useStartShift = () => {
   const queryClient = useQueryClient();
-  
+
   const mutation = useMutation<StartShiftResponseType, Error, StartShiftRequestType>({
     mutationFn: async (json) => {
-      const response = await client.api.attendance["start-shift"]["$post"]({ json });
-      
-      if (!response.ok) {
+      const response = await client.api.attendance["start-shift"]["$post"]({ json });      if (!response.ok) {
         throw new Error("Failed to start shift");
       }
       
@@ -64,15 +62,11 @@ export const useEndShift = () => {
 };
 
 // Get Active Shift
-export const useGetActiveShift = (workspaceId?: string) => {
-  const effectiveWorkspaceId = workspaceId || "default-workspace";
-  
+export const useGetActiveShift = () => {
   const query = useQuery({
-    queryKey: ["active-shift", effectiveWorkspaceId],
+    queryKey: ["active-shift"],
     queryFn: async () => {
-      const response = await client.api.attendance["active-shift"][":workspaceId"].$get({
-        param: { workspaceId: effectiveWorkspaceId },
-      });
+      const response = await client.api.attendance["active-shift"].$get();
 
       if (!response.ok) {
         throw new Error("Failed to fetch active shift");
@@ -87,15 +81,11 @@ export const useGetActiveShift = (workspaceId?: string) => {
 };
 
 // Get Attendance Records (Admin only)
-export const useGetAttendanceRecords = (workspaceId?: string) => {
-  const effectiveWorkspaceId = workspaceId || "default-workspace";
-  
+export const useGetAttendanceRecords = () => {
   const query = useQuery({
-    queryKey: ["attendance", effectiveWorkspaceId],
+    queryKey: ["attendance-records"],
     queryFn: async () => {
-      const response = await client.api.attendance[":workspaceId"].$get({
-        param: { workspaceId: effectiveWorkspaceId },
-      });
+      const response = await client.api.attendance.records.$get();
 
       if (!response.ok) {
         throw new Error("Failed to fetch attendance records");
@@ -110,15 +100,11 @@ export const useGetAttendanceRecords = (workspaceId?: string) => {
 };
 
 // Get My Attendance History
-export const useGetMyAttendance = (workspaceId?: string) => {
-  const effectiveWorkspaceId = workspaceId || "default-workspace";
-  
+export const useGetMyAttendance = () => {
   const query = useQuery({
-    queryKey: ["my-attendance", effectiveWorkspaceId],
+    queryKey: ["my-attendance"],
     queryFn: async () => {
-      const response = await client.api.attendance["my-attendance"][":workspaceId"].$get({
-        param: { workspaceId: effectiveWorkspaceId },
-      });
+      const response = await client.api.attendance["my-attendance"].$get();
 
       if (!response.ok) {
         throw new Error("Failed to fetch my attendance");

@@ -10,9 +10,6 @@ const AttendanceClient = () => {
 
   if (!user) return null;
 
-  // In project-centric mode, we don't need workspaceId
-  // Remove workspace checks since all users can access attendance
-
   return (
     <div className="h-full flex flex-col">
       <div className="flex flex-col gap-y-6 p-6">

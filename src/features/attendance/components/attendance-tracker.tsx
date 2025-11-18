@@ -27,11 +27,10 @@ import { useGetProjects } from "@/features/projects/api/use-get-projects";
 import { toast } from "sonner";
 
 interface AttendanceTrackerProps {
-  workspaceId?: string;
+  workspaceId: string; // Required - must be a valid UUID
 }
 
-export const AttendanceTracker = ({ workspaceId }: AttendanceTrackerProps = {}) => {
-  const effectiveWorkspaceId = workspaceId || "default-workspace";
+export const AttendanceTracker = ({ workspaceId }: AttendanceTrackerProps) => {
   const [elapsedTime, setElapsedTime] = useState(0);
   const [dailyTasks, setDailyTasks] = useState<string[]>([""]);
   const [selectedProjectId, setSelectedProjectId] = useState<string>("");
@@ -40,8 +39,8 @@ export const AttendanceTracker = ({ workspaceId }: AttendanceTrackerProps = {}) 
   const [isEndShiftDialogOpen, setIsEndShiftDialogOpen] = useState(false);
   const [showMidnightWarning, setShowMidnightWarning] = useState(false);
 
-  const { data: activeShift, isLoading } = useGetActiveShift(effectiveWorkspaceId);
-  const { data: projects } = useGetProjects({});
+  const { data: activeShift, isLoading } = useGetActiveShift(workspaceId);
+  const { data: projects } = useGetProjects({ workspaceId });
   const startShift = useStartShift();
   const endShift = useEndShift();
 
@@ -108,7 +107,6 @@ export const AttendanceTracker = ({ workspaceId }: AttendanceTrackerProps = {}) 
   const handleStartShiftSubmit = () => {
     startShift.mutate(
       {
-        workspaceId: effectiveWorkspaceId,
         projectId: selectedProjectId || undefined,
       },
       {
