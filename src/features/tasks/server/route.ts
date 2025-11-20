@@ -5,7 +5,7 @@ import { eq, and, desc, or, like, sql, inArray } from "drizzle-orm";
 
 import { sessionMiddleware } from "@/lib/session-middleware";
 import { db } from "@/db";
-import { tasks, projects, users, activityLogs } from "@/db/schema";
+import { tasks, projects, users, activityLogs, members } from "@/db/schema";
 import { getMember } from "@/features/members/utils";
 import { MemberRole } from "@/features/members/types";
 import { ActivityAction, EntityType } from "@/features/activity/types";
@@ -169,7 +169,9 @@ const app = new Hono()
       const { workspaceId, projectId, assigneeId, status, search, dueDate, limit, offset } =
         c.req.valid("query");
 
-      // If workspaceId is provided, check membership (legacy support)
+      // Check user's role to determine access level
+      let isAdmin = false;
+      
       if (workspaceId) {
         const member = await getMember({
           workspaceId,
@@ -179,10 +181,37 @@ const app = new Hono()
         if (!member) {
           return c.json({ error: "Unauthorized" }, 401);
         }
+
+        // Check if user is admin
+        isAdmin = [
+          MemberRole.ADMIN,
+          MemberRole.PROJECT_MANAGER,
+          MemberRole.MANAGEMENT,
+        ].includes(member.role as MemberRole);
+      } else {
+        // No workspace context - check role in ANY workspace
+        const [userMember] = await db
+          .select({ role: members.role })
+          .from(members)
+          .where(eq(members.userId, user.id))
+          .limit(1);
+        
+        if (userMember) {
+          isAdmin = [
+            MemberRole.ADMIN,
+            MemberRole.PROJECT_MANAGER,
+            MemberRole.MANAGEMENT,
+          ].includes(userMember.role as MemberRole);
+        }
       }
 
       // Build where conditions
       const conditions = [];
+      
+      // RBAC: Employees can only see their own tasks (assigned to them)
+      if (!isAdmin) {
+        conditions.push(eq(tasks.assigneeId, user.id));
+      }
       
       // Only filter by workspace if provided (legacy support)
       if (workspaceId) {

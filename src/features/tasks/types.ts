@@ -78,3 +78,80 @@ export type ExcelTaskData = {
   assigneeEmail?: string;
   labels?: string[];
 };
+
+// Task Overview types for completion workflow
+export enum OverviewStatus {
+  PENDING = "PENDING",
+  APPROVED = "APPROVED",
+  REWORK = "REWORK",
+}
+
+export type ProofOfWork = {
+  screenshots?: string[];
+  files?: string[];
+  links?: string[];
+  githubCommits?: string[];
+};
+
+export type TaskOverview = {
+  id: string;
+  taskId: string;
+  employeeId: string;
+  completedWorkDescription: string;
+  completionMethod: string;
+  stepsFollowed: string;
+  proofOfWork: ProofOfWork;
+  challenges?: string;
+  additionalRemarks?: string;
+  timeSpent?: number;
+  taskTitle: string;
+  employeeName: string;
+  resolvedDate?: string;
+  resolvedTime?: string;
+  status: OverviewStatus;
+  adminRemarks?: string;
+  reviewedBy?: string;
+  reviewedAt?: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type CreateTaskOverviewPayload = {
+  taskId: string;
+  completedWorkDescription: string;
+  completionMethod: string;
+  stepsFollowed: string;
+  proofOfWork: ProofOfWork;
+  challenges?: string;
+  additionalRemarks?: string;
+  timeSpent?: number;
+};
+
+export type ReviewTaskOverviewPayload = {
+  overviewId: string;
+  status: OverviewStatus.APPROVED | OverviewStatus.REWORK;
+  adminRemarks?: string;
+};
+
+// Notification types
+export enum NotificationType {
+  TASK_REWORK = "TASK_REWORK",
+  ADMIN_REMARK = "ADMIN_REMARK",
+  TASK_APPROVED = "TASK_APPROVED",
+  TASK_ASSIGNED = "TASK_ASSIGNED",
+  OVERVIEW_REQUIRED = "OVERVIEW_REQUIRED",
+}
+
+export type Notification = {
+  id: string;
+  userId: string;
+  taskId?: string;
+  type: NotificationType;
+  title: string;
+  message: string;
+  actionBy?: string;
+  actionByName?: string;
+  isRead: boolean;
+  readAt?: string;
+  createdAt: string;
+};

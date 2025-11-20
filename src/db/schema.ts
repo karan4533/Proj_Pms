@@ -275,3 +275,79 @@ export const activityLogs = pgTable('activity_logs', {
   // Composite index for common queries
   workspaceCreatedIdx: index('activity_logs_workspace_created_idx').on(table.workspaceId, table.createdAt),
 }));
+
+// Task Overviews table - For task completion validation workflow
+export const taskOverviews = pgTable('task_overviews', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  taskId: uuid('task_id').notNull().references(() => tasks.id, { onDelete: 'cascade' }),
+  employeeId: uuid('employee_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  
+  // Required completion details
+  completedWorkDescription: text('completed_work_description').notNull(), // What was completed
+  completionMethod: text('completion_method').notNull(), // How it was completed
+  stepsFollowed: text('steps_followed').notNull(), // Steps/methods used
+  
+  // Proof of work (screenshots, files, links, commits)
+  proofOfWork: jsonb('proof_of_work').$type<{
+    screenshots?: string[]; // Array of image URLs
+    files?: string[]; // Array of file URLs
+    links?: string[]; // Array of relevant links
+    githubCommits?: string[]; // Array of commit URLs/hashes
+  }>().notNull(),
+  
+  // Optional fields
+  challenges: text('challenges'), // Challenges faced
+  additionalRemarks: text('additional_remarks'), // Extra notes
+  timeSpent: integer('time_spent'), // Time in minutes (optional)
+  
+  // System fields
+  taskTitle: text('task_title').notNull(), // Auto-filled from task
+  employeeName: text('employee_name').notNull(), // Auto-filled from user
+  resolvedDate: timestamp('resolved_date'), // When task was completed
+  resolvedTime: text('resolved_time'), // Time portion stored separately
+  
+  // Review status
+  status: text('status').notNull().default('PENDING'), // PENDING, APPROVED, REWORK
+  adminRemarks: text('admin_remarks'), // Admin feedback/comments
+  reviewedBy: uuid('reviewed_by').references(() => users.id, { onDelete: 'set null' }),
+  reviewedAt: timestamp('reviewed_at'),
+  
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => ({
+  taskIdx: index('task_overviews_task_idx').on(table.taskId),
+  employeeIdx: index('task_overviews_employee_idx').on(table.employeeId),
+  statusIdx: index('task_overviews_status_idx').on(table.status),
+  reviewerIdx: index('task_overviews_reviewer_idx').on(table.reviewedBy),
+  // Unique constraint: one overview per task
+  uniqueTaskOverview: uniqueIndex('task_overviews_task_unique_idx').on(table.taskId),
+}));
+
+// Notifications table - For employee-specific task updates
+export const notifications = pgTable('notifications', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }), // Who receives the notification
+  taskId: uuid('task_id').references(() => tasks.id, { onDelete: 'cascade' }),
+  
+  // Notification content
+  type: text('type').notNull(), // TASK_REWORK, ADMIN_REMARK, TASK_APPROVED, TASK_ASSIGNED, etc.
+  title: text('title').notNull(),
+  message: text('message').notNull(),
+  
+  // Related data
+  actionBy: uuid('action_by').references(() => users.id, { onDelete: 'set null' }), // Who triggered this notification
+  actionByName: text('action_by_name'), // Denormalized for quick display
+  
+  // Status
+  isRead: text('is_read').notNull().default('false'), // 'true' or 'false' as text
+  readAt: timestamp('read_at'),
+  
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => ({
+  userIdx: index('notifications_user_idx').on(table.userId),
+  taskIdx: index('notifications_task_idx').on(table.taskId),
+  typeIdx: index('notifications_type_idx').on(table.type),
+  isReadIdx: index('notifications_is_read_idx').on(table.isRead),
+  // Composite index for user's unread notifications
+  userUnreadIdx: index('notifications_user_unread_idx').on(table.userId, table.isRead, table.createdAt),
+}));

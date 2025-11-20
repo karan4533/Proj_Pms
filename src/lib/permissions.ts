@@ -29,6 +29,14 @@ export enum Permission {
   // User permissions
   MANAGE_USERS = "MANAGE_USERS",
   
+  // Profile permissions
+  ADD_PROFILE = "ADD_PROFILE",
+  EDIT_PROFILE = "EDIT_PROFILE",
+  DELETE_PROFILE = "DELETE_PROFILE",
+  
+  // Requirements permissions
+  ADD_REQUIREMENTS = "ADD_REQUIREMENTS",
+  
   // Other permissions
   COMMENT = "COMMENT",
   DASHBOARD_ACCESS = "DASHBOARD_ACCESS",
@@ -50,6 +58,10 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     Permission.ASSIGN_TASK,
     Permission.CHANGE_STATUS,
     Permission.MANAGE_USERS,
+    Permission.ADD_PROFILE,
+    Permission.EDIT_PROFILE,
+    Permission.DELETE_PROFILE,
+    Permission.ADD_REQUIREMENTS,
     Permission.COMMENT,
     Permission.DASHBOARD_ACCESS,
   ],
@@ -62,6 +74,10 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     Permission.ASSIGN_TASK,
     Permission.CHANGE_STATUS,
     Permission.MANAGE_USERS, // Limited to own projects
+    Permission.ADD_PROFILE,
+    Permission.EDIT_PROFILE,
+    Permission.DELETE_PROFILE,
+    Permission.ADD_REQUIREMENTS,
     Permission.COMMENT,
     Permission.DASHBOARD_ACCESS,
   ],
@@ -84,6 +100,10 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     Permission.DASHBOARD_ACCESS,
   ],
   [UserRole.MANAGEMENT]: [
+    Permission.ADD_PROFILE,
+    Permission.EDIT_PROFILE,
+    Permission.DELETE_PROFILE,
+    Permission.ADD_REQUIREMENTS,
     Permission.DASHBOARD_ACCESS, // View only
   ],
 };

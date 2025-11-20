@@ -23,6 +23,7 @@ import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 import { useCreateRequirement } from "@/features/requirements/api/use-create-requirement";
 import { useGetProfiles } from "@/features/requirements/api/use-get-profiles";
+import { AdminGuard } from "@/components/admin-guard";
 
 interface FileUploadRow {
   id: string;
@@ -175,7 +176,8 @@ export default function AddRequirementsPage() {
   };
 
   return (
-    <div className="w-full h-full p-6">
+    <AdminGuard>
+      <div className="w-full h-full p-6">
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-foreground">Add Requirements</h1>
         <p className="text-sm text-muted-foreground mt-2">
@@ -469,6 +471,7 @@ export default function AddRequirementsPage() {
           </div>
         </div>
       </form>
-    </div>
+      </div>
+    </AdminGuard>
   );
 }

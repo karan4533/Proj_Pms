@@ -1,0 +1,458 @@
+import { Hono } from "hono";
+import { zValidator } from "@hono/zod-validator";
+import { z } from "zod";
+import { eq, and, desc } from "drizzle-orm";
+
+import { db } from "@/db";
+import { taskOverviews, tasks, users, notifications, activityLogs, members } from "@/db/schema";
+import { sessionMiddleware } from "@/lib/session-middleware";
+import { OverviewStatus, TaskStatus } from "@/features/tasks/types";
+import { MemberRole } from "@/features/members/types";
+
+const app = new Hono()
+  // Create task overview
+  .post(
+    "/",
+    sessionMiddleware,
+    zValidator(
+      "json",
+      z.object({
+        taskId: z.string().uuid(),
+        completedWorkDescription: z.string().min(10),
+        completionMethod: z.string().min(10),
+        stepsFollowed: z.string().min(10),
+        proofOfWork: z.object({
+          screenshots: z.array(z.string()).optional(),
+          files: z.array(z.string()).optional(),
+          links: z.array(z.string()).optional(),
+          githubCommits: z.array(z.string()).optional(),
+        }).passthrough(), // Allow additional fields
+        challenges: z.string().optional(),
+        additionalRemarks: z.string().optional(),
+        timeSpent: z.number().int().min(0).optional(),
+      })
+    ),
+    async (c) => {
+      const user = c.get("user");
+      
+      console.log("📝 Task overview submission started");
+      console.log("User ID:", user.id);
+      
+      let data;
+      try {
+        data = c.req.valid("json");
+        console.log("Validated data:", JSON.stringify(data, null, 2));
+      } catch (validationError) {
+        console.error("Validation error:", validationError);
+        return c.json(
+          { success: false, message: "Invalid request data" },
+          400
+        );
+      }
+
+      try {
+        console.log("Fetching task:", data.taskId);
+        // Verify the task exists and user is assigned to it
+        const [task] = await db
+          .select()
+          .from(tasks)
+          .where(eq(tasks.id, data.taskId))
+          .limit(1);
+
+        if (!task) {
+          console.log("Task not found");
+          return c.json({ success: false, message: "Task not found" }, 404);
+        }
+
+        console.log("Task found:", task.issueId);
+        console.log("Task assignee:", task.assigneeId, "Current user:", user.id);
+
+        if (task.assigneeId !== user.id) {
+          console.log("User not assigned to task");
+          return c.json(
+            { success: false, message: "You are not assigned to this task" },
+            403
+          );
+        }
+
+        // Check if overview already exists
+        console.log("Checking for existing overview");
+        const [existingOverview] = await db
+          .select()
+          .from(taskOverviews)
+          .where(eq(taskOverviews.taskId, data.taskId))
+          .limit(1);
+
+        if (existingOverview) {
+          console.log("Overview already exists");
+          return c.json(
+            {
+              success: false,
+              message: "An overview has already been submitted for this task",
+            },
+            409
+          );
+        }
+
+        // Get employee info
+        console.log("Fetching employee info");
+        const [employee] = await db
+          .select()
+          .from(users)
+          .where(eq(users.id, user.id))
+          .limit(1);
+
+        if (!employee) {
+          console.log("Employee not found");
+          return c.json({ success: false, message: "User not found" }, 404);
+        }
+
+        console.log("Employee found:", employee.name);
+
+        // Create resolved date and time
+        const now = new Date();
+        const resolvedTime = now.toLocaleTimeString("en-US", {
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+          hour12: true,
+        });
+
+        console.log("Creating overview record");
+        // Create the overview
+        const [overview] = await db
+          .insert(taskOverviews)
+          .values({
+            taskId: data.taskId,
+            employeeId: user.id,
+            completedWorkDescription: data.completedWorkDescription,
+            completionMethod: data.completionMethod,
+            stepsFollowed: data.stepsFollowed,
+            proofOfWork: data.proofOfWork,
+            challenges: data.challenges || null,
+            additionalRemarks: data.additionalRemarks || null,
+            timeSpent: data.timeSpent || null,
+            taskTitle: task.summary,
+            employeeName: employee.name,
+            resolvedDate: now,
+            resolvedTime: resolvedTime,
+            status: OverviewStatus.PENDING,
+          })
+          .returning();
+
+        console.log("Overview created:", overview.id);
+
+        console.log("Overview created:", overview.id);
+
+        // Log activity
+        console.log("Logging activity");
+        try {
+          await db.insert(activityLogs).values({
+            actionType: "OVERVIEW_SUBMITTED",
+            entityType: "TASK",
+            entityId: task.id,
+            userId: user.id,
+            userName: employee.name,
+            workspaceId: task.workspaceId,
+            projectId: task.projectId,
+            taskId: task.id,
+            summary: `${employee.name} submitted completion overview for ${task.issueId}`,
+            changes: {
+              metadata: {
+                overviewId: overview.id,
+                taskTitle: task.summary,
+                resolvedDate: now.toISOString(),
+              },
+            },
+          });
+          console.log("Activity logged successfully");
+        } catch (error) {
+          console.error("Failed to log overview submission activity:", error);
+        }
+
+        console.log("✅ Overview submission successful");
+        return c.json({ success: true, data: overview });
+      } catch (error) {
+        console.error("❌ Failed to create task overview:", error);
+        console.error("Error stack:", error instanceof Error ? error.stack : "No stack trace");
+        return c.json(
+          { success: false, message: "Failed to submit task overview", error: error instanceof Error ? error.message : String(error) },
+          500
+        );
+      }
+    }
+  )
+
+  // Get task overviews (admin can see all pending, employees see their own)
+  .get("/", sessionMiddleware, async (c) => {
+    const user = c.get("user");
+    const status = c.req.query("status");
+    const taskId = c.req.query("taskId");
+    const workspaceId = c.req.query("workspaceId");
+
+    try {
+      // Check if user is admin or project manager in the workspace
+      let isAdmin = false;
+      if (workspaceId) {
+        const [member] = await db
+          .select()
+          .from(members)
+          .where(
+            and(
+              eq(members.workspaceId, workspaceId),
+              eq(members.userId, user.id)
+            )
+          )
+          .limit(1);
+
+        isAdmin = member && (
+          member.role === MemberRole.ADMIN || 
+          member.role === MemberRole.PROJECT_MANAGER ||
+          member.role === MemberRole.MANAGEMENT
+        );
+      }
+
+      let query = db.select().from(taskOverviews);
+
+      const conditions = [];
+
+      // Employees can only see their own overviews
+      // Admins can see all
+      if (!isAdmin) {
+        conditions.push(eq(taskOverviews.employeeId, user.id));
+      }
+
+      if (status) {
+        conditions.push(eq(taskOverviews.status, status));
+      }
+
+      if (taskId) {
+        conditions.push(eq(taskOverviews.taskId, taskId));
+      }
+
+      if (conditions.length > 0) {
+        query = query.where(and(...conditions)) as any;
+      }
+
+      const overviews = await query.orderBy(desc(taskOverviews.createdAt));
+
+      return c.json({ success: true, data: overviews });
+    } catch (error) {
+      console.error("Failed to fetch task overviews:", error);
+      return c.json(
+        { success: false, message: "Failed to fetch task overviews" },
+        500
+      );
+    }
+  })
+
+  // Review task overview (admin only)
+  .patch(
+    "/:overviewId/review",
+    sessionMiddleware,
+    zValidator(
+      "json",
+      z.object({
+        status: z.enum([OverviewStatus.APPROVED, OverviewStatus.REWORK]),
+        adminRemarks: z.string().optional(),
+      })
+    ),
+    async (c) => {
+      const user = c.get("user");
+      const { overviewId } = c.req.param();
+      const { status, adminRemarks } = c.req.valid("json");
+
+      try {
+        // Get the overview first to check workspace
+        const [overview] = await db
+          .select()
+          .from(taskOverviews)
+          .where(eq(taskOverviews.id, overviewId))
+          .limit(1);
+
+        if (!overview) {
+          return c.json(
+            { success: false, message: "Overview not found" },
+            404
+          );
+        }
+
+        // Get the task to check workspace
+        const [task] = await db
+          .select()
+          .from(tasks)
+          .where(eq(tasks.id, overview.taskId))
+          .limit(1);
+
+        if (!task) {
+          return c.json({ success: false, message: "Task not found" }, 404);
+        }
+
+        // Verify user is admin/project manager in the workspace
+        if (task.workspaceId) {
+          const [member] = await db
+            .select()
+            .from(members)
+            .where(
+              and(
+                eq(members.workspaceId, task.workspaceId),
+                eq(members.userId, user.id)
+              )
+            )
+            .limit(1);
+
+          const isAdmin = member && (
+            member.role === MemberRole.ADMIN || 
+            member.role === MemberRole.PROJECT_MANAGER ||
+            member.role === MemberRole.MANAGEMENT
+          );
+
+          if (!isAdmin) {
+            return c.json(
+              { success: false, message: "Only admins can review task overviews" },
+              403
+            );
+          }
+        }
+
+        // Update the overview
+        const [updatedOverview] = await db
+          .update(taskOverviews)
+          .set({
+            status,
+            adminRemarks,
+            reviewedBy: user.id,
+            reviewedAt: new Date(),
+            updatedAt: new Date(),
+          })
+          .where(eq(taskOverviews.id, overviewId))
+          .returning();
+
+        // If approved, update task status to Done and set resolved date/time
+        if (status === OverviewStatus.APPROVED) {
+          await db
+            .update(tasks)
+            .set({
+              status: TaskStatus.DONE,
+              resolved: overview.resolvedDate,
+              updated: new Date(),
+            })
+            .where(eq(tasks.id, overview.taskId));
+
+          // Log activity
+          try {
+            await db.insert(activityLogs).values({
+              actionType: "TASK_APPROVED",
+              entityType: "TASK",
+              entityId: task.id,
+              userId: user.id,
+              userName: user.name,
+              workspaceId: task.workspaceId,
+              projectId: task.projectId,
+              taskId: task.id,
+              summary: `${user.name} approved task ${task.issueId} - moved to Done`,
+              changes: {
+                field: "status",
+                oldValue: task.status,
+                newValue: TaskStatus.DONE,
+                metadata: {
+                  overviewId: overview.id,
+                  resolvedDate: overview.resolvedDate?.toISOString(),
+                  adminRemarks,
+                },
+              },
+            });
+          } catch (error) {
+            console.error("Failed to log task approval activity:", error);
+          }
+
+          // Send notification to employee
+          if (task.assigneeId) {
+            try {
+              await db.insert(notifications).values({
+                userId: task.assigneeId,
+                taskId: task.id,
+                type: "TASK_APPROVED",
+                title: "Task Approved",
+                message: `Your task "${task.summary}" has been approved and moved to Done.${
+                  adminRemarks ? ` Admin remarks: ${adminRemarks}` : ""
+                }`,
+                actionBy: user.id,
+                actionByName: user.name,
+                isRead: "false",
+              });
+            } catch (error) {
+              console.error("Failed to send task approval notification:", error);
+            }
+          }
+        }
+
+        // If rework requested, move task back to IN_REVIEW
+        if (status === OverviewStatus.REWORK) {
+          await db
+            .update(tasks)
+            .set({
+              status: TaskStatus.IN_REVIEW,
+              updated: new Date(),
+            })
+            .where(eq(tasks.id, overview.taskId));
+
+          // Log activity
+          try {
+            await db.insert(activityLogs).values({
+              actionType: "TASK_REWORK_REQUESTED",
+              entityType: "TASK",
+              entityId: task.id,
+              userId: user.id,
+              userName: user.name,
+              workspaceId: task.workspaceId,
+              projectId: task.projectId,
+              taskId: task.id,
+              summary: `${user.name} requested rework on ${task.issueId} - moved to In Review`,
+              changes: {
+                field: "status",
+                oldValue: task.status,
+                newValue: TaskStatus.IN_REVIEW,
+                metadata: {
+                  overviewId: overview.id,
+                  adminRemarks,
+                },
+              },
+            });
+          } catch (error) {
+            console.error("Failed to log rework request activity:", error);
+          }
+
+          // Send notification to employee
+          if (task.assigneeId) {
+            try {
+              await db.insert(notifications).values({
+                userId: task.assigneeId,
+                taskId: task.id,
+                type: "TASK_REWORK",
+                title: "Rework Requested",
+                message: `Your task "${task.summary}" requires rework. The task has been moved back to In Review.${
+                  adminRemarks ? ` Admin remarks: ${adminRemarks}` : ""
+                }`,
+                actionBy: user.id,
+                actionByName: user.name,
+                isRead: "false",
+              });
+            } catch (error) {
+              console.error("Failed to send rework notification:", error);
+            }
+          }
+        }
+
+        return c.json({ success: true, data: updatedOverview });
+      } catch (error) {
+        console.error("Failed to review task overview:", error);
+        return c.json(
+          { success: false, message: "Failed to review task overview" },
+          500
+        );
+      }
+    }
+  );
+
+export default app;

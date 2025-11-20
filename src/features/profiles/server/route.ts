@@ -3,9 +3,30 @@ import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
 import { db } from "@/db";
-import { users, customDesignations, customDepartments } from "@/db/schema";
+import { users, customDesignations, customDepartments, members } from "@/db/schema";
 import { sessionMiddleware } from "@/lib/session-middleware";
 import { eq } from "drizzle-orm";
+import { MemberRole } from "@/features/members/types";
+
+/**
+ * Check if user is admin by checking their role in any workspace
+ */
+async function isUserAdmin(userId: string): Promise<boolean> {
+  const memberRoles = await db
+    .select({ role: members.role })
+    .from(members)
+    .where(eq(members.userId, userId))
+    .limit(1);
+  
+  if (memberRoles.length === 0) return false;
+  
+  const role = memberRoles[0].role;
+  return [
+    MemberRole.ADMIN,
+    MemberRole.PROJECT_MANAGER,
+    MemberRole.MANAGEMENT,
+  ].includes(role as MemberRole);
+}
 
 const app = new Hono()
   .post(
@@ -29,6 +50,12 @@ const app = new Hono()
     ),
     async (c) => {
       const user = c.get("user");
+
+      // Check if user is admin
+      const adminCheck = await isUserAdmin(user.id);
+      if (!adminCheck) {
+        return c.json({ error: "Forbidden: Only admins can add profiles" }, 403);
+      }
 
       try {
         const data = c.req.valid("json");
@@ -224,6 +251,14 @@ const app = new Hono()
       })
     ),
     async (c) => {
+      const currentUser = c.get("user");
+
+      // Check if user is admin
+      const adminCheck = await isUserAdmin(currentUser.id);
+      if (!adminCheck) {
+        return c.json({ error: "Forbidden: Only admins can edit profiles" }, 403);
+      }
+
       try {
         const userId = c.req.param("userId");
         const data = c.req.valid("json");
@@ -267,6 +302,14 @@ const app = new Hono()
     }
   )
   .delete("/:userId", sessionMiddleware, async (c) => {
+    const currentUser = c.get("user");
+
+    // Check if user is admin
+    const adminCheck = await isUserAdmin(currentUser.id);
+    if (!adminCheck) {
+      return c.json({ error: "Forbidden: Only admins can delete profiles" }, 403);
+    }
+
     try {
       const userId = c.req.param("userId");
 

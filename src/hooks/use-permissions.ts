@@ -63,6 +63,14 @@ export function usePermissions({
       // User permissions
       manageUsers: canPerformAction(Permission.MANAGE_USERS, context),
 
+      // Profile permissions
+      addProfile: hasPermission(role, Permission.ADD_PROFILE),
+      editProfile: hasPermission(role, Permission.EDIT_PROFILE),
+      deleteProfile: hasPermission(role, Permission.DELETE_PROFILE),
+
+      // Requirements permissions
+      addRequirements: hasPermission(role, Permission.ADD_REQUIREMENTS),
+
       // Other permissions
       comment: hasPermission(role, Permission.COMMENT),
       accessDashboard: hasPermission(role, Permission.DASHBOARD_ACCESS),

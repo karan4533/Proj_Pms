@@ -11,6 +11,7 @@ import { ChevronDown } from "lucide-react";
 
 import { KanbanCard } from "./kanban-card";
 import { KanbanColumnHeader } from "./kanban-column-header";
+import { TaskOverviewForm } from "./task-overview-form";
 
 import { Task, TaskStatus } from "../types";
 import "./kanban-optimizations.css";
@@ -43,6 +44,13 @@ interface DataKanbanProps {
 }
 
 export const DataKanban = ({ data, onChange }: DataKanbanProps) => {
+  // Overview form state
+  const [overviewFormOpen, setOverviewFormOpen] = useState(false);
+  const [taskForOverview, setTaskForOverview] = useState<Task | null>(null);
+  const [pendingDragUpdate, setPendingDragUpdate] = useState<{
+    updates: { id: string; status: TaskStatus; position: number }[];
+  } | null>(null);
+
   // Track visible task count per column (Jira-style pagination)
   const [visibleTasks, setVisibleTasks] = useState<VisibleTasksState>({
     [TaskStatus.BACKLOG]: INITIAL_TASKS_PER_COLUMN,
@@ -125,86 +133,143 @@ export const DataKanban = ({ data, onChange }: DataKanbanProps) => {
       const sourceStatus = source.droppableId as TaskStatus;
       const destStatus = destination.droppableId as TaskStatus;
 
-      let updatesPayload: {
-        id: string;
-        status: TaskStatus;
-        position: number;
-      }[] = [];
+      // Find the task being moved
+      const sourceColumn = tasks[sourceStatus];
+      const movedTask = sourceColumn[source.index];
+
+      if (!movedTask) {
+        console.error("No task found at the source index");
+        return;
+      }
+
+      // INTERCEPT: If moving to Done, open overview form instead
+      if (destStatus === TaskStatus.DONE && sourceStatus !== TaskStatus.DONE) {
+        setTaskForOverview(movedTask);
+        setOverviewFormOpen(true);
+        
+        // Store the intended update to apply after overview submission
+        const tempUpdates = calculateDragUpdates(source, destination, sourceStatus, destStatus, movedTask);
+        setPendingDragUpdate({ updates: tempUpdates });
+        return;
+      }
+
+      // Normal drag behavior for non-Done moves
+      const updatesPayload = calculateDragUpdates(source, destination, sourceStatus, destStatus, movedTask);
 
       setTasks((prevTasks) => {
         const newTasks = { ...prevTasks };
 
-        // Safely remove the task from the source column
+        // Remove from source
         const sourceColumn = [...newTasks[sourceStatus]];
-        const [movedTask] = sourceColumn.splice(source.index, 1);
-
-        // If there's no moved task (shouldn't happen, but just in case), return the previous state
-        if (!movedTask) {
-          console.error("No task found at the source index");
-          return prevTasks;
-        }
-
-        // Create a new task object with potentially updated status
-        const updatedMovedTask =
-          sourceStatus !== destStatus
-            ? { ...movedTask, status: destStatus }
-            : movedTask;
-
-        // Update the source column
+        sourceColumn.splice(source.index, 1);
         newTasks[sourceStatus] = sourceColumn;
 
-        // Add the task to the destination column
+        // Add to destination
+        const updatedMovedTask = sourceStatus !== destStatus
+          ? { ...movedTask, status: destStatus }
+          : movedTask;
+        
         const destColumn = [...newTasks[destStatus]];
         destColumn.splice(destination.index, 0, updatedMovedTask);
         newTasks[destStatus] = destColumn;
-
-        // Prepare minimal update payloads
-        updatesPayload = [];
-
-        // Always update the moved task
-        updatesPayload.push({
-          id: updatedMovedTask.id,
-          status: destStatus,
-          position: Math.min((destination.index + 1) * 1000, 1_000_000),
-        });
-
-        // Update positions for affected tasks in the destination column
-        newTasks[destStatus].forEach((task, index) => {
-          if (task && task.id !== updatedMovedTask.id) {
-            const newPosition = Math.min((index + 1) * 1000, 1_000_000);
-            if (task.position !== newPosition) {
-              updatesPayload.push({
-                id: task.id,
-                status: destStatus,
-                position: newPosition,
-              });
-            }
-          }
-        });
-
-        // If the task moved between columns, update positions in the source column
-        if (sourceStatus !== destStatus) {
-          newTasks[sourceStatus].forEach((task, index) => {
-            if (task) {
-              const newPosition = Math.min((index + 1) * 1000, 1_000_000);
-              if (task.position !== newPosition) {
-                updatesPayload.push({
-                  id: task.id,
-                  status: sourceStatus,
-                  position: newPosition,
-                });
-              }
-            }
-          });
-        }
 
         return newTasks;
       });
 
       onChange(updatesPayload);
     },
-    [onChange]
+    [tasks, onChange]
   );
+
+  // Helper function to calculate position updates
+  const calculateDragUpdates = useCallback((
+    source: { index: number; droppableId: string },
+    destination: { index: number; droppableId: string },
+    sourceStatus: TaskStatus,
+    destStatus: TaskStatus,
+    movedTask: Task
+  ) => {
+    const updatesPayload: {
+      id: string;
+      status: TaskStatus;
+      position: number;
+    }[] = [];
+
+    // Always update the moved task
+    updatesPayload.push({
+      id: movedTask.id,
+      status: destStatus,
+      position: Math.min((destination.index + 1) * 1000, 1_000_000),
+    });
+
+    // Update positions for tasks in destination column
+    const destColumn = tasks[destStatus];
+    destColumn.forEach((task, index) => {
+      if (task && task.id !== movedTask.id) {
+        const adjustedIndex = index >= destination.index ? index + 1 : index;
+        const newPosition = Math.min((adjustedIndex + 1) * 1000, 1_000_000);
+        if (task.position !== newPosition) {
+          updatesPayload.push({
+            id: task.id,
+            status: destStatus,
+            position: newPosition,
+          });
+        }
+      }
+    });
+
+    // Update source column positions if cross-column move
+    if (sourceStatus !== destStatus) {
+      const sourceColumn = tasks[sourceStatus];
+      sourceColumn.forEach((task, index) => {
+        if (task && task.id !== movedTask.id) {
+          const adjustedIndex = index > source.index ? index - 1 : index;
+          const newPosition = Math.min((adjustedIndex + 1) * 1000, 1_000_000);
+          if (task.position !== newPosition) {
+            updatesPayload.push({
+              id: task.id,
+              status: sourceStatus,
+              position: newPosition,
+            });
+          }
+        }
+      });
+    }
+
+    return updatesPayload;
+  }, [tasks]);
+
+  // Handle successful overview submission
+  const handleOverviewSuccess = useCallback(() => {
+    if (pendingDragUpdate) {
+      // Apply the pending drag update
+      onChange(pendingDragUpdate.updates);
+      
+      // Update local state to reflect the move
+      setTasks((prevTasks) => {
+        const newTasks = { ...prevTasks };
+        
+        if (!taskForOverview) return prevTasks;
+        
+        // Find and remove from current column
+        Object.keys(newTasks).forEach((status) => {
+          const columnStatus = status as TaskStatus;
+          newTasks[columnStatus] = newTasks[columnStatus].filter(
+            (t) => t.id !== taskForOverview.id
+          );
+        });
+        
+        // Add to Done column
+        const updatedTask = { ...taskForOverview, status: TaskStatus.DONE };
+        newTasks[TaskStatus.DONE] = [...newTasks[TaskStatus.DONE], updatedTask];
+        
+        return newTasks;
+      });
+      
+      setPendingDragUpdate(null);
+    }
+    setTaskForOverview(null);
+  }, [pendingDragUpdate, taskForOverview, onChange]);
 
   return (
     <DragDropContext onDragEnd={onDragEnd}>
@@ -271,6 +336,20 @@ export const DataKanban = ({ data, onChange }: DataKanbanProps) => {
           );
         })}
       </div>
+
+      {/* Task Overview Form Dialog */}
+      {taskForOverview && (
+        <TaskOverviewForm
+          task={taskForOverview}
+          isOpen={overviewFormOpen}
+          onClose={() => {
+            setOverviewFormOpen(false);
+            setTaskForOverview(null);
+            setPendingDragUpdate(null);
+          }}
+          onSuccess={handleOverviewSuccess}
+        />
+      )}
     </DragDropContext>
   );
 };

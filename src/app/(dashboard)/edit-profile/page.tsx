@@ -10,6 +10,7 @@ import { EditProfileModal } from "@/features/profiles/components/edit-profile-mo
 import { DeleteProfileDialog } from "@/features/profiles/components/delete-profile-dialog";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { AdminGuard } from "@/components/admin-guard";
 
 interface Profile {
   id: string;
@@ -50,14 +51,15 @@ export default function EditProfilePage() {
   }
 
   return (
-    <div className="h-full flex flex-col">
-      <div className="flex flex-col gap-y-4 p-6">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <UserCog className="size-6" />
-            <h1 className="text-2xl font-bold">Edit Profile</h1>
+    <AdminGuard>
+      <div className="h-full flex flex-col">
+        <div className="flex flex-col gap-y-4 p-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <UserCog className="size-6" />
+              <h1 className="text-2xl font-bold">Edit Profile</h1>
+            </div>
           </div>
-        </div>
 
         <Card>
           <CardHeader>
@@ -162,23 +164,24 @@ export default function EditProfilePage() {
             </Card>
           )}
         </div>
+
+        {selectedUserId && (
+          <EditProfileModal
+            userId={selectedUserId}
+            open={!!selectedUserId}
+            onOpenChange={(open) => !open && setSelectedUserId(null)}
+          />
+        )}
+
+        {deleteUserId && (
+          <DeleteProfileDialog
+            userId={deleteUserId}
+            open={!!deleteUserId}
+            onOpenChange={(open) => !open && setDeleteUserId(null)}
+          />
+        )}
       </div>
-
-      {selectedUserId && (
-        <EditProfileModal
-          userId={selectedUserId}
-          open={!!selectedUserId}
-          onOpenChange={(open) => !open && setSelectedUserId(null)}
-        />
-      )}
-
-      {deleteUserId && (
-        <DeleteProfileDialog
-          userId={deleteUserId}
-          open={!!deleteUserId}
-          onOpenChange={(open) => !open && setDeleteUserId(null)}
-        />
-      )}
-    </div>
+      </div>
+    </AdminGuard>
   );
 }

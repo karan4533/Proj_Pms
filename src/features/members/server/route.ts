@@ -230,6 +230,67 @@ const app = new Hono()
 
       return c.json({ data: updatedMember });
     }
-  );
+  )
+  // Get current member's role in workspace
+  .get(
+    "/current",
+    sessionMiddleware,
+    zValidator("query", z.object({ workspaceId: z.string() })),
+    async (c) => {
+      const user = c.get("user");
+      const { workspaceId } = c.req.valid("query");
+
+      const member = await getMember({
+        workspaceId,
+        userId: user.id,
+      });
+
+      if (!member) {
+        return c.json(
+          { success: false, message: "You are not a member of this workspace" },
+          404
+        );
+      }
+
+      // Get user details
+      const [userDetails] = await db
+        .select()
+        .from(users)
+        .where(eq(users.id, user.id))
+        .limit(1);
+
+      return c.json({
+        data: {
+          ...member,
+          name: userDetails?.name || "",
+          email: userDetails?.email || "",
+        },
+      });
+    }
+  )
+  .get("/role", sessionMiddleware, async (c) => {
+    const user = c.get("user");
+
+    // Get user's role from ANY workspace (use first one found)
+    const [memberRole] = await db
+      .select({
+        role: members.role,
+        workspaceId: members.workspaceId,
+      })
+      .from(members)
+      .where(eq(members.userId, user.id))
+      .limit(1);
+
+    if (!memberRole) {
+      return c.json({ data: { role: null, workspaceId: null } });
+    }
+
+    return c.json({
+      data: {
+        role: memberRole.role,
+        workspaceId: memberRole.workspaceId,
+      },
+    });
+  });
 
 export default app;

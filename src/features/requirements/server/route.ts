@@ -2,9 +2,30 @@ import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import { db } from "@/db";
-import { projectRequirements, users } from "@/db/schema";
+import { projectRequirements, users, members } from "@/db/schema";
 import { sessionMiddleware } from "@/lib/session-middleware";
 import { eq } from "drizzle-orm";
+import { MemberRole } from "@/features/members/types";
+
+/**
+ * Check if user is admin by checking their role in any workspace
+ */
+async function isUserAdmin(userId: string): Promise<boolean> {
+  const memberRoles = await db
+    .select({ role: members.role })
+    .from(members)
+    .where(eq(members.userId, userId))
+    .limit(1);
+  
+  if (memberRoles.length === 0) return false;
+  
+  const role = memberRoles[0].role;
+  return [
+    MemberRole.ADMIN,
+    MemberRole.PROJECT_MANAGER,
+    MemberRole.MANAGEMENT,
+  ].includes(role as MemberRole);
+}
 
 const app = new Hono()
   .post(
@@ -29,6 +50,14 @@ const app = new Hono()
       })
     ),
     async (c) => {
+      const currentUser = c.get("user");
+
+      // Check if user is admin
+      const adminCheck = await isUserAdmin(currentUser.id);
+      if (!adminCheck) {
+        return c.json({ error: "Forbidden: Only admins can add requirements" }, 403);
+      }
+
       try {
         const data = c.req.valid("json");
 

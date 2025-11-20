@@ -22,12 +22,14 @@ import {
 import { GoHome, GoHomeFill, GoCheckCircle, GoCheckCircleFill } from "react-icons/go";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { useIsGlobalAdmin } from "@/features/members/api/use-get-user-role";
 
 import { DottedSeparator } from "./dotted-separator";
 import { CollapsibleSection } from "./collapsible-section";
 
 export const Sidebar = () => {
   const pathname = usePathname();
+  const isAdmin = useIsGlobalAdmin();
   const [expandedSections, setExpandedSections] = useState<string[]>(["Home", "Projects"]);
 
   const toggleSection = (section: string) => {
@@ -88,26 +90,30 @@ export const Sidebar = () => {
               <FileText className="size-4" />
               Report
             </Link>
-            <Link
-              href="/profile"
-              className={cn(
-                "flex items-center gap-2.5 p-2.5 rounded-md font-medium hover:text-primary transition text-muted-foreground",
-                pathname === "/profile" && "bg-background dark:bg-background shadow-sm text-primary border border-border"
-              )}
-            >
-              <User className="size-4" />
-              Add Profile
-            </Link>
-            <Link
-              href="/edit-profile"
-              className={cn(
-                "flex items-center gap-2.5 p-2.5 rounded-md font-medium hover:text-primary transition text-muted-foreground",
-                pathname === "/edit-profile" && "bg-background dark:bg-background shadow-sm text-primary border border-border"
-              )}
-            >
-              <UserPen className="size-4" />
-              Edit Profile
-            </Link>
+            {isAdmin && (
+              <>
+                <Link
+                  href="/profile"
+                  className={cn(
+                    "flex items-center gap-2.5 p-2.5 rounded-md font-medium hover:text-primary transition text-muted-foreground",
+                    pathname === "/profile" && "bg-background dark:bg-background shadow-sm text-primary border border-border"
+                  )}
+                >
+                  <User className="size-4" />
+                  Add Profile
+                </Link>
+                <Link
+                  href="/edit-profile"
+                  className={cn(
+                    "flex items-center gap-2.5 p-2.5 rounded-md font-medium hover:text-primary transition text-muted-foreground",
+                    pathname === "/edit-profile" && "bg-background dark:bg-background shadow-sm text-primary border border-border"
+                  )}
+                >
+                  <UserPen className="size-4" />
+                  Edit Profile
+                </Link>
+              </>
+            )}
           </nav>
         )}
       </div>
@@ -129,26 +135,30 @@ export const Sidebar = () => {
         </button>
         {expandedSections.includes("Projects") && (
           <nav className="flex flex-col gap-1 ml-4 mt-1">
-            <Link
-              href="/add-requirements"
-              className={cn(
-                "flex items-center gap-2.5 p-2.5 rounded-md font-medium hover:text-primary transition text-muted-foreground",
-                pathname === "/add-requirements" && "bg-background dark:bg-background shadow-sm text-primary border border-border"
-              )}
-            >
-              <GoCheckCircle className="size-4" />
-              Add Requirements
-            </Link>
-            <Link
-              href="/new-project"
-              className={cn(
-                "flex items-center gap-2.5 p-2.5 rounded-md font-medium hover:text-primary transition text-muted-foreground",
-                pathname === "/new-project" && "bg-background dark:bg-background shadow-sm text-primary border border-border"
-              )}
-            >
-              <PlusCircle className="size-4" />
-              Add Project
-            </Link>
+            {isAdmin && (
+              <>
+                <Link
+                  href="/add-requirements"
+                  className={cn(
+                    "flex items-center gap-2.5 p-2.5 rounded-md font-medium hover:text-primary transition text-muted-foreground",
+                    pathname === "/add-requirements" && "bg-background dark:bg-background shadow-sm text-primary border border-border"
+                  )}
+                >
+                  <GoCheckCircle className="size-4" />
+                  Add Requirements
+                </Link>
+                <Link
+                  href="/new-project"
+                  className={cn(
+                    "flex items-center gap-2.5 p-2.5 rounded-md font-medium hover:text-primary transition text-muted-foreground",
+                    pathname === "/new-project" && "bg-background dark:bg-background shadow-sm text-primary border border-border"
+                  )}
+                >
+                  <PlusCircle className="size-4" />
+                  Add Project
+                </Link>
+              </>
+            )}
             <Link
               href="/tasks"
               className={cn(
