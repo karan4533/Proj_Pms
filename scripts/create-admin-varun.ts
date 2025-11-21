@@ -3,7 +3,7 @@ import postgres from 'postgres';
 import { config } from 'dotenv';
 import bcrypt from 'bcryptjs';
 import { users, workspaces, members } from '../src/db/schema.js';
-import { eq, ne } from 'drizzle-orm';
+import { eq, ne, and } from 'drizzle-orm';
 
 config({ path: '.env.local' });
 
@@ -30,8 +30,10 @@ async function createAdminUser() {
         // Check if member exists
         const existingMember = await db.select()
           .from(members)
-          .where(eq(members.userId, existingUser[0].id))
-          .where(eq(members.workspaceId, workspace.id));
+          .where(and(
+            eq(members.userId, existingUser[0].id),
+            eq(members.workspaceId, workspace.id)
+          ));
         
         if (existingMember.length === 0) {
           // Add as admin

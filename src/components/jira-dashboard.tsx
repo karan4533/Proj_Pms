@@ -20,6 +20,7 @@ import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, 
 import { useGetTasks } from "@/features/tasks/api/use-get-tasks";
 import { useGetProjects } from "@/features/projects/api/use-get-projects";
 import { useGetMembers } from "@/features/members/api/use-get-members";
+import { useIsGlobalAdmin } from "@/features/members/api/use-get-user-role";
 import { Task, TaskStatus, TaskPriority } from "@/features/tasks/types";
 import { formatDistanceToNow, format, isToday, isYesterday } from "date-fns";
 import {
@@ -45,9 +46,13 @@ const PRIORITY_COLORS = {
 };
 
 export const JiraDashboard = () => {
+  const { data: isAdmin } = useIsGlobalAdmin();
   const [selectedProject, setSelectedProject] = useState<string>("all");
   const [selectedStatus, setSelectedStatus] = useState<string>("all");
   const [selectedAssignee, setSelectedAssignee] = useState<string>("all");
+  const [selectedMonth, setSelectedMonth] = useState<string>("all");
+  const [selectedWeek, setSelectedWeek] = useState<string>("all");
+  const [selectedDate, setSelectedDate] = useState<string>("all");
   
   // Fetch more tasks to handle large CSV uploads (e.g., 1276 rows)
   // Note: For datasets > 2000, consider implementing pagination
@@ -110,9 +115,93 @@ export const JiraDashboard = () => {
         console.log("Sample assigneeIds in remaining tasks:", allTasks.slice(0, 3).map(t => t.assigneeId));
       }
     }
+
+    // Month filter
+    if (selectedMonth !== "all") {
+      const now = new Date();
+      let startDate: Date;
+      let endDate: Date;
+
+      if (selectedMonth === "current") {
+        startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+        endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+      } else if (selectedMonth === "last") {
+        startDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+        endDate = new Date(now.getFullYear(), now.getMonth(), 0);
+      } else if (selectedMonth === "next") {
+        startDate = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+        endDate = new Date(now.getFullYear(), now.getMonth() + 2, 0);
+      }
+
+      if (startDate! && endDate!) {
+        filtered = filtered.filter((task) => {
+          if (!task.dueDate) return false;
+          const dueDate = new Date(task.dueDate);
+          return dueDate >= startDate && dueDate <= endDate;
+        });
+      }
+    }
+
+    // Week filter
+    if (selectedWeek !== "all") {
+      const now = new Date();
+      let startDate: Date;
+      let endDate: Date;
+
+      const getWeekBounds = (date: Date) => {
+        const day = date.getDay();
+        const diff = date.getDate() - day + (day === 0 ? -6 : 1);
+        const monday = new Date(date.setDate(diff));
+        monday.setHours(0, 0, 0, 0);
+        const sunday = new Date(monday);
+        sunday.setDate(monday.getDate() + 6);
+        sunday.setHours(23, 59, 59, 999);
+        return { monday, sunday };
+      };
+
+      if (selectedWeek === "current") {
+        const bounds = getWeekBounds(new Date(now));
+        startDate = bounds.monday;
+        endDate = bounds.sunday;
+      } else if (selectedWeek === "last") {
+        const lastWeek = new Date(now);
+        lastWeek.setDate(lastWeek.getDate() - 7);
+        const bounds = getWeekBounds(lastWeek);
+        startDate = bounds.monday;
+        endDate = bounds.sunday;
+      } else if (selectedWeek === "next") {
+        const nextWeek = new Date(now);
+        nextWeek.setDate(nextWeek.getDate() + 7);
+        const bounds = getWeekBounds(nextWeek);
+        startDate = bounds.monday;
+        endDate = bounds.sunday;
+      }
+
+      if (startDate! && endDate!) {
+        filtered = filtered.filter((task) => {
+          if (!task.dueDate) return false;
+          const dueDate = new Date(task.dueDate);
+          return dueDate >= startDate && dueDate <= endDate;
+        });
+      }
+    }
+
+    // Date filter (specific date)
+    if (selectedDate !== "all") {
+      const targetDate = new Date(selectedDate);
+      filtered = filtered.filter((task) => {
+        if (!task.dueDate) return false;
+        const dueDate = new Date(task.dueDate);
+        return (
+          dueDate.getFullYear() === targetDate.getFullYear() &&
+          dueDate.getMonth() === targetDate.getMonth() &&
+          dueDate.getDate() === targetDate.getDate()
+        );
+      });
+    }
     
     console.log("Filtered tasks:", filtered.length, "out of", allTasks.length);
-    console.log("Filters applied:", { selectedProject, selectedStatus, selectedAssignee });
+    console.log("Filters applied:", { selectedProject, selectedStatus, selectedAssignee, selectedMonth, selectedWeek, selectedDate });
     if (filtered.length > 0 && filtered.length < 5) {
       console.log("Sample filtered task:", {
         status: filtered[0].status,
@@ -122,7 +211,7 @@ export const JiraDashboard = () => {
     }
     
     return filtered;
-  }, [allTasks, selectedProject, selectedStatus, selectedAssignee]);
+  }, [allTasks, selectedProject, selectedStatus, selectedAssignee, selectedMonth, selectedWeek, selectedDate]);
 
   // Calculate stats
   const now = new Date();
@@ -431,25 +520,57 @@ export const JiraDashboard = () => {
               </Select>
             </div>
 
+            {isAdmin && (
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Assignee</label>
+                <Select value={selectedAssignee} onValueChange={setSelectedAssignee}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="All Assignees" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Assignees</SelectItem>
+                    {members.map((member: any) => (
+                      <SelectItem key={member.userId} value={member.userId}>
+                        {member.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
             <div className="space-y-2">
-              <label className="text-sm font-medium">Assignee</label>
-              <Select value={selectedAssignee} onValueChange={setSelectedAssignee}>
+              <label className="text-sm font-medium">Month</label>
+              <Select value={selectedMonth} onValueChange={setSelectedMonth}>
                 <SelectTrigger>
-                  <SelectValue placeholder="All Assignees" />
+                  <SelectValue placeholder="All Months" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Assignees</SelectItem>
-                  {members.map((member: any) => (
-                    <SelectItem key={member.userId} value={member.userId}>
-                      {member.name}
-                    </SelectItem>
-                  ))}
+                  <SelectItem value="all">All Months</SelectItem>
+                  <SelectItem value="current">This Month</SelectItem>
+                  <SelectItem value="last">Last Month</SelectItem>
+                  <SelectItem value="next">Next Month</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Week</label>
+              <Select value={selectedWeek} onValueChange={setSelectedWeek}>
+                <SelectTrigger>
+                  <SelectValue placeholder="All Weeks" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Weeks</SelectItem>
+                  <SelectItem value="current">This Week</SelectItem>
+                  <SelectItem value="last">Last Week</SelectItem>
+                  <SelectItem value="next">Next Week</SelectItem>
                 </SelectContent>
               </Select>
             </div>
           </div>
           <div className="flex items-center justify-between mt-3">
-            {(selectedProject !== "all" || selectedStatus !== "all" || selectedAssignee !== "all") ? (
+            {(selectedProject !== "all" || selectedStatus !== "all" || selectedAssignee !== "all" || selectedMonth !== "all" || selectedWeek !== "all" || selectedDate !== "all") ? (
               <div className="flex items-center gap-2">
                 <Badge variant="secondary" className="text-xs">
                   Showing {tasks.length} of {allTasks.length} tasks
@@ -461,6 +582,9 @@ export const JiraDashboard = () => {
                     setSelectedProject("all");
                     setSelectedStatus("all");
                     setSelectedAssignee("all");
+                    setSelectedMonth("all");
+                    setSelectedWeek("all");
+                    setSelectedDate("all");
                   }}
                 >
                   Clear Filters

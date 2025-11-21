@@ -29,7 +29,7 @@ import { CollapsibleSection } from "./collapsible-section";
 
 export const Sidebar = () => {
   const pathname = usePathname();
-  const isAdmin = useIsGlobalAdmin();
+  const { data: isAdmin } = useIsGlobalAdmin();
   const [expandedSections, setExpandedSections] = useState<string[]>(["Home", "Projects"]);
 
   const toggleSection = (section: string) => {

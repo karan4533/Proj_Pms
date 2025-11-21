@@ -291,6 +291,32 @@ const app = new Hono()
         workspaceId: memberRole.workspaceId,
       },
     });
+  })
+  .get("/all-employees", sessionMiddleware, async (c) => {
+    const user = c.get("user");
+
+    // Check if user is admin
+    const adminMember = await db.query.members.findFirst({
+      where: and(
+        eq(members.userId, user.id),
+        eq(members.role, MemberRole.ADMIN)
+      ),
+    });
+
+    if (!adminMember) {
+      return c.json({ error: "Unauthorized - Admin access required" }, 403);
+    }
+
+    // Get all users (employees)
+    const allEmployees = await db.query.users.findMany({
+      columns: {
+        id: true,
+        name: true,
+        email: true,
+      },
+    });
+
+    return c.json({ data: allEmployees });
   });
 
 export default app;

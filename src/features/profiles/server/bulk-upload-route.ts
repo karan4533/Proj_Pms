@@ -2,12 +2,39 @@ import { Hono } from "hono";
 import bcrypt from "bcryptjs";
 import * as XLSX from "xlsx";
 import { db } from "@/db";
-import { users } from "@/db/schema";
+import { users, members } from "@/db/schema";
 import { sessionMiddleware } from "@/lib/session-middleware";
 import { or, eq, inArray } from "drizzle-orm";
+import { MemberRole } from "@/features/members/types";
+
+/**
+ * Check if user is admin by checking their role in any workspace
+ */
+async function isUserAdmin(userId: string): Promise<boolean> {
+  const memberRoles = await db
+    .select({ role: members.role })
+    .from(members)
+    .where(eq(members.userId, userId))
+    .limit(1);
+  
+  if (memberRoles.length === 0) return false;
+  
+  const role = memberRoles[0].role;
+  return [
+    MemberRole.ADMIN,
+    MemberRole.PROJECT_MANAGER,
+    MemberRole.MANAGEMENT,
+  ].includes(role as MemberRole);
+}
 
 const app = new Hono().post("/", sessionMiddleware, async (c) => {
   const user = c.get("user");
+
+  // Check if user is admin
+  const adminCheck = await isUserAdmin(user.id);
+  if (!adminCheck) {
+    return c.json({ error: "Unauthorized - Admin access required for bulk uploads" }, 403);
+  }
 
   try {
     const formData = await c.req.formData();

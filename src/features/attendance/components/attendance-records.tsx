@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { Download, Loader2, Clock, CheckCircle2 } from "lucide-react";
+import { useState, useMemo } from "react";
+import { Download, Loader2, Clock, CheckCircle2, Filter } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -20,19 +20,55 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useGetAttendanceRecords } from "../api/use-attendance";
 import { useGetProjects } from "@/features/projects/api/use-get-projects";
+import { useGetAllEmployees } from "@/features/members/api/use-get-all-employees";
 
 interface AttendanceRecordsProps {
   workspaceId?: string;
 }
 
 export const AttendanceRecords = ({ workspaceId }: AttendanceRecordsProps = {}) => {
-  const { data: records, isLoading } = useGetAttendanceRecords(workspaceId);
+  const { data: records, isLoading, error } = useGetAttendanceRecords();
   const { data: projects } = useGetProjects({});
+  const { data: allEmployees, isLoading: isLoadingEmployees } = useGetAllEmployees();
   
   const [selectedRecord, setSelectedRecord] = useState<any>(null);
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
+  const [selectedEmployeeFilter, setSelectedEmployeeFilter] = useState<string>("all");
+
+  // Debug logging
+  console.log('AttendanceRecords Debug:', { 
+    recordsCount: records?.length, 
+    isLoading, 
+    hasError: !!error,
+    records: records?.slice(0, 2), // Log first 2 records
+    allEmployeesCount: allEmployees?.length
+  });
+
+  // Get record count per employee
+  const employeeRecordCounts = useMemo(() => {
+    if (!records) return new Map();
+    const counts = new Map<string, number>();
+    records.forEach((record: any) => {
+      counts.set(record.userId, (counts.get(record.userId) || 0) + 1);
+    });
+    return counts;
+  }, [records]);
+
+  // Filter records by selected employee
+  const filteredRecords = useMemo(() => {
+    if (!records) return [];
+    if (selectedEmployeeFilter === "all") return records;
+    return records.filter((record: any) => record.userId === selectedEmployeeFilter);
+  }, [records, selectedEmployeeFilter]);
 
   const formatDuration = (minutes: number | null) => {
     if (!minutes) return "N/A";
@@ -61,11 +97,12 @@ export const AttendanceRecords = ({ workspaceId }: AttendanceRecordsProps = {}) 
     setIsDetailDialogOpen(true);
   };
 
-  const downloadCSV = () => {
-    if (!records || records.length === 0) return;
+  const downloadCSV = (filteredOnly = false) => {
+    const dataToDownload = filteredOnly ? filteredRecords : records;
+    if (!dataToDownload || dataToDownload.length === 0) return;
 
     const headers = ["Date", "Employee Name", "Email", "Start Time", "End Time", "Duration", "Status", "End Activity", "Tasks"];
-    const rows = records.map((record: any) => [
+    const rows = dataToDownload.map((record: any) => [
       formatDate(record.shiftStartTime),
       record.userName || "N/A",
       record.userEmail || "N/A",
@@ -86,7 +123,10 @@ export const AttendanceRecords = ({ workspaceId }: AttendanceRecordsProps = {}) 
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `attendance-records-${new Date().toISOString().split("T")[0]}.csv`;
+    const filename = filteredOnly && selectedEmployeeFilter !== "all"
+      ? `attendance-${allEmployees?.find(e => e.id === selectedEmployeeFilter)?.name?.replace(/\s+/g, '-')}-${new Date().toISOString().split("T")[0]}.csv`
+      : `attendance-all-employees-${new Date().toISOString().split("T")[0]}.csv`;
+    a.download = filename;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -101,33 +141,96 @@ export const AttendanceRecords = ({ workspaceId }: AttendanceRecordsProps = {}) 
     );
   }
 
+  if (error) {
+    return (
+      <Card>
+        <CardContent className="py-12">
+          <div className="flex flex-col items-center justify-center text-destructive">
+            <p className="text-base font-medium">Error loading attendance records</p>
+            <p className="text-sm mt-1">{error instanceof Error ? error.message : 'Unknown error'}</p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <>
     <Card>
       <CardHeader>
-        <div className="flex items-center justify-between">
-          <div>
-            <CardTitle className="flex items-center gap-2">
-              <Clock className="size-5" />
-              Attendance Records {records && records.length > 0 && `(${records.length})`}
-            </CardTitle>
-            <CardDescription>
-              Company-wide attendance records for all employees (Admin Only)
-            </CardDescription>
+        <div className="flex flex-col gap-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <Clock className="size-5" />
+                All Employees Attendance Records
+              </CardTitle>
+              <CardDescription>
+                Company-wide attendance records for all employees (Admin Only)
+              </CardDescription>
+            </div>
           </div>
-          <Button onClick={downloadCSV} disabled={!records || records.length === 0} className="gap-2">
-            <Download className="size-4" />
-            Download CSV
-          </Button>
+          
+          {/* Filter and Download Controls */}
+          <div className="flex items-center gap-3 flex-wrap">
+            <div className="flex items-center gap-2 flex-1 min-w-[250px]">
+              <Filter className="size-4 text-muted-foreground" />
+              <Select value={selectedEmployeeFilter} onValueChange={setSelectedEmployeeFilter} disabled={isLoadingEmployees}>
+                <SelectTrigger className="w-full max-w-[300px]">
+                  <SelectValue placeholder="Filter by employee" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Employees ({records?.length || 0} records)</SelectItem>
+                  {allEmployees?.map((employee) => {
+                    const recordCount = employeeRecordCounts.get(employee.id) || 0;
+                    return (
+                      <SelectItem key={employee.id} value={employee.id}>
+                        {employee.name} ({recordCount} {recordCount === 1 ? 'record' : 'records'})
+                      </SelectItem>
+                    );
+                  })}
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="flex items-center gap-2">
+              <Button 
+                onClick={() => downloadCSV(false)} 
+                disabled={!records || records.length === 0} 
+                className="gap-2"
+                variant="outline"
+              >
+                <Download className="size-4" />
+                Download All
+              </Button>
+              
+              {selectedEmployeeFilter !== "all" && (
+                <Button 
+                  onClick={() => downloadCSV(true)} 
+                  disabled={!filteredRecords || filteredRecords.length === 0} 
+                  className="gap-2"
+                >
+                  <Download className="size-4" />
+                  Download Filtered ({filteredRecords.length})
+                </Button>
+              )}
+            </div>
+          </div>
         </div>
       </CardHeader>
       <CardContent>
-        {!records || records.length === 0 ? (
+        {!filteredRecords || filteredRecords.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
             <Clock className="size-10 mb-3" />
-            <p className="text-base font-medium">No completed attendance records found</p>
+            <p className="text-base font-medium">
+              {selectedEmployeeFilter === "all" 
+                ? "No completed attendance records found" 
+                : "No records for selected employee"}
+            </p>
             <p className="text-sm mt-1 text-center max-w-md">
-              No employees have completed shifts yet across the company.
+              {selectedEmployeeFilter === "all"
+                ? "No employees have completed shifts yet across the company."
+                : "This employee has no completed shifts yet."}
             </p>
           </div>
         ) : (
@@ -146,7 +249,7 @@ export const AttendanceRecords = ({ workspaceId }: AttendanceRecordsProps = {}) 
                 </TableRow>
             </TableHeader>
             <TableBody>
-              {records.map((record: any) => (
+              {filteredRecords.map((record: any) => (
                 <TableRow key={record.id}>
                   <TableCell className="font-medium">
                     {formatDate(record.shiftStartTime)}

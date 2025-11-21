@@ -5,10 +5,35 @@ import { ExcelUploadCard } from "@/components/excel-upload-card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { FileSpreadsheet, ListTodo } from "lucide-react";
+import { getMember } from "@/features/members/utils";
+import { MemberRole } from "@/features/members/types";
 
 const TasksPage = async () => {
   const user = await getCurrent();
   if (!user) redirect("/sign-in");
+
+  // Check if user is admin in any workspace
+  const isAdmin = await (async () => {
+    try {
+      const { db } = await import("@/db");
+      const { members } = await import("@/db/schema");
+      const { eq } = await import("drizzle-orm");
+      
+      const memberRole = await db.query.members.findFirst({
+        where: eq(members.userId, user.id),
+      });
+      
+      if (!memberRole) return false;
+      
+      return [
+        MemberRole.ADMIN,
+        MemberRole.PROJECT_MANAGER,
+        MemberRole.MANAGEMENT,
+      ].includes(memberRole.role as MemberRole);
+    } catch {
+      return false;
+    }
+  })();
 
   return (
     <div className="h-full flex flex-col p-6 space-y-6">
@@ -22,15 +47,17 @@ const TasksPage = async () => {
 
       {/* Tabs for Individual vs Bulk Import */}
       <Tabs defaultValue="individual" className="w-full">
-        <TabsList className="grid w-full max-w-md grid-cols-2">
+        <TabsList className={`grid w-full max-w-md ${isAdmin ? 'grid-cols-2' : 'grid-cols-1'}`}>
           <TabsTrigger value="individual" className="flex items-center gap-2">
             <ListTodo className="h-4 w-4" />
             Individual Tasks
           </TabsTrigger>
-          <TabsTrigger value="bulk" className="flex items-center gap-2">
-            <FileSpreadsheet className="h-4 w-4" />
-            Bulk Import
-          </TabsTrigger>
+          {isAdmin && (
+            <TabsTrigger value="bulk" className="flex items-center gap-2">
+              <FileSpreadsheet className="h-4 w-4" />
+              Bulk Import
+            </TabsTrigger>
+          )}
         </TabsList>
 
         {/* Individual Tasks Tab */}
@@ -49,7 +76,8 @@ const TasksPage = async () => {
           </Card>
         </TabsContent>
 
-        {/* Bulk Import Tab */}
+        {/* Bulk Import Tab - Admin Only */}
+        {isAdmin && (
         <TabsContent value="bulk" className="mt-6 space-y-6">
           <div className="grid gap-6 lg:grid-cols-3">
             {/* Bulk Import Form */}
@@ -125,6 +153,7 @@ const TasksPage = async () => {
             </CardContent>
           </Card>
         </TabsContent>
+        )}
       </Tabs>
     </div>
   );

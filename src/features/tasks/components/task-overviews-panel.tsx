@@ -178,15 +178,15 @@ export function TaskOverviewsPanel() {
             </TabsList>
 
             <TabsContent value="pending" className="mt-6">
-              {renderOverviewsTable(pendingOverviews, loadingPending)}
+              {renderOverviewsTable(pendingOverviews as TaskOverview[], loadingPending)}
             </TabsContent>
 
             <TabsContent value="approved" className="mt-6">
-              {renderOverviewsTable(approvedOverviews, loadingApproved)}
+              {renderOverviewsTable(approvedOverviews as TaskOverview[], loadingApproved)}
             </TabsContent>
 
             <TabsContent value="rework" className="mt-6">
-              {renderOverviewsTable(reworkOverviews, loadingRework)}
+              {renderOverviewsTable(reworkOverviews as TaskOverview[], loadingRework)}
             </TabsContent>
           </Tabs>
         </CardContent>

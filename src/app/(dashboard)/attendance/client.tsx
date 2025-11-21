@@ -4,9 +4,11 @@ import { AttendanceTracker } from "@/features/attendance/components/attendance-t
 import { AttendanceRecords } from "@/features/attendance/components/attendance-records";
 import { MyAttendanceHistory } from "@/features/attendance/components/my-attendance-history";
 import { useCurrent } from "@/features/auth/api/use-current";
+import { useIsGlobalAdmin } from "@/features/members/api/use-get-user-role";
 
 const AttendanceClient = () => {
   const { data: user } = useCurrent();
+  const { data: isAdmin, isLoading: isAdminLoading } = useIsGlobalAdmin();
 
   if (!user) return null;
 
@@ -25,14 +27,12 @@ const AttendanceClient = () => {
         {/* Attendance Tracker */}
         <AttendanceTracker />
 
-        {/* My Attendance History */}
+        {/* My Attendance History - Admin sees their own first */}
         <MyAttendanceHistory />
 
-        {/* Admin/Management view: All Attendance Records */}
-        {(user.email?.includes('admin') || user.email?.includes('management')) && (
-          <div className="mt-6">
-            <AttendanceRecords />
-          </div>
+        {/* Admin Only: All Employees' Attendance Records - Shown below admin's own records */}
+        {!isAdminLoading && isAdmin && (
+          <AttendanceRecords />
         )}
       </div>
     </div>

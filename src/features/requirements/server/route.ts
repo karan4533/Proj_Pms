@@ -71,7 +71,8 @@ const app = new Hono()
             dueDate: data.dueDate ? new Date(data.dueDate) : null,
             sampleInputFiles: data.sampleInputFiles || [],
             expectedOutputFiles: data.expectedOutputFiles || [],
-          })
+            status: 'PENDING',
+          } as any)
           .returning();
 
         return c.json({ data: requirement });

@@ -12,7 +12,7 @@ import { PageLoader } from "@/components/page-loader";
 
 export const BoardView = () => {
   const workspaceId = useWorkspaceId();
-  const [{ projectId, assigneeId, search, dueDate }] = useTaskFilters();
+  const [{ projectId, assigneeId, search, dueDate, month, week }] = useTaskFilters();
 
   const { data: tasks, isLoading } = useGetTasks({
     workspaceId,
@@ -20,6 +20,8 @@ export const BoardView = () => {
     assigneeId,
     search,
     dueDate,
+    month,
+    week,
     limit: 2000,
   });
 
@@ -69,6 +71,12 @@ export const BoardView = () => {
     labels: task.labels ? (Array.isArray(task.labels) ? task.labels as string[] : []) : undefined,
     estimatedHours: task.estimatedHours ?? undefined,
     actualHours: task.actualHours ?? 0,
+    assignee: task.assignee ? {
+      id: task.assignee.id,
+      name: task.assignee.name || '',
+      email: task.assignee.email || '',
+    } : undefined,
+    project: task.project ?? undefined,
   })) || [];
 
   return (

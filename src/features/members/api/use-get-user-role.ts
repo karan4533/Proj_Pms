@@ -28,7 +28,7 @@ export const useGetCurrentUserRole = () => {
  * Useful for global UI elements like sidebar
  */
 export const useIsGlobalAdmin = () => {
-  const { data: roleData } = useGetCurrentUserRole();
+  const { data: roleData, isLoading } = useGetCurrentUserRole();
   
   const isAdmin = roleData && (
     roleData.role === "ADMIN" || 
@@ -36,5 +36,8 @@ export const useIsGlobalAdmin = () => {
     roleData.role === "MANAGEMENT"
   );
 
-  return isAdmin || false;
+  return {
+    data: isAdmin || false,
+    isLoading
+  };
 };

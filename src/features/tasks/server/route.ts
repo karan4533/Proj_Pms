@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
-import { eq, and, desc, or, like, sql, inArray } from "drizzle-orm";
+import { eq, and, desc, or, like, sql, inArray, gte, lte } from "drizzle-orm";
 
 import { sessionMiddleware } from "@/lib/session-middleware";
 import { db } from "@/db";
@@ -160,13 +160,15 @@ const app = new Hono()
         status: z.nativeEnum(TaskStatus).nullish(),
         search: z.string().nullish(),
         dueDate: z.string().nullish(),
+        month: z.string().nullish(),
+        week: z.string().nullish(),
         limit: z.string().optional().transform(val => val ? parseInt(val) : 100),
         offset: z.string().optional().transform(val => val ? parseInt(val) : 0),
       })
     ),
     async (c) => {
       const user = c.get("user");
-      const { workspaceId, projectId, assigneeId, status, search, dueDate, limit, offset } =
+      const { workspaceId, projectId, assigneeId, status, search, dueDate, month, week, limit, offset } =
         c.req.valid("query");
 
       // Check user's role to determine access level
@@ -232,6 +234,78 @@ const app = new Hono()
 
       if (dueDate) {
         conditions.push(eq(tasks.dueDate, new Date(dueDate)));
+      }
+
+      // Month filter
+      if (month) {
+        const now = new Date();
+        let startDate: Date;
+        let endDate: Date;
+
+        if (month === "current") {
+          startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+          endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+        } else if (month === "last") {
+          startDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+          endDate = new Date(now.getFullYear(), now.getMonth(), 0);
+        } else if (month === "next") {
+          startDate = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+          endDate = new Date(now.getFullYear(), now.getMonth() + 2, 0);
+        }
+
+        if (startDate! && endDate!) {
+          conditions.push(
+            and(
+              gte(tasks.dueDate, startDate),
+              lte(tasks.dueDate, endDate)
+            )!
+          );
+        }
+      }
+
+      // Week filter
+      if (week) {
+        const now = new Date();
+        let startDate: Date;
+        let endDate: Date;
+
+        const getWeekBounds = (date: Date) => {
+          const day = date.getDay();
+          const diff = date.getDate() - day + (day === 0 ? -6 : 1); // Adjust for Sunday
+          const monday = new Date(date.setDate(diff));
+          monday.setHours(0, 0, 0, 0);
+          const sunday = new Date(monday);
+          sunday.setDate(monday.getDate() + 6);
+          sunday.setHours(23, 59, 59, 999);
+          return { monday, sunday };
+        };
+
+        if (week === "current") {
+          const bounds = getWeekBounds(new Date(now));
+          startDate = bounds.monday;
+          endDate = bounds.sunday;
+        } else if (week === "last") {
+          const lastWeek = new Date(now);
+          lastWeek.setDate(lastWeek.getDate() - 7);
+          const bounds = getWeekBounds(lastWeek);
+          startDate = bounds.monday;
+          endDate = bounds.sunday;
+        } else if (week === "next") {
+          const nextWeek = new Date(now);
+          nextWeek.setDate(nextWeek.getDate() + 7);
+          const bounds = getWeekBounds(nextWeek);
+          startDate = bounds.monday;
+          endDate = bounds.sunday;
+        }
+
+        if (startDate! && endDate!) {
+          conditions.push(
+            and(
+              gte(tasks.dueDate, startDate),
+              lte(tasks.dueDate, endDate)
+            )!
+          );
+        }
       }
 
       if (search) {
@@ -869,6 +943,24 @@ const app = new Hono()
         console.log('📤 CSV Upload request received');
         const user = c.get("user");
         console.log('👤 User:', user.email);
+        
+        // Check if user is admin
+        const adminMember = await db.query.members.findFirst({
+          where: and(
+            eq(members.userId, user.id),
+            or(
+              eq(members.role, MemberRole.ADMIN),
+              eq(members.role, MemberRole.PROJECT_MANAGER),
+              eq(members.role, MemberRole.MANAGEMENT)
+            )
+          ),
+        });
+
+        if (!adminMember) {
+          console.error('❌ Unauthorized - Admin access required');
+          return c.json({ error: "Unauthorized - Admin access required for bulk uploads" }, 403);
+        }
+
         const formData = await c.req.formData();
         
         const file = formData.get('file') as File;
@@ -986,9 +1078,32 @@ const app = new Hono()
         const headers = rowsData[0];
         const createdTasks = [];
         
+        // Filter out empty rows and instruction rows (rows that start with parenthesis or are all empty)
+        const dataRows = rowsData.slice(1).filter(row => {
+          // Skip if row is empty
+          if (!row || row.every(cell => !cell || !cell.trim())) {
+            console.log('⏭️ Skipping empty row');
+            return false;
+          }
+          // Skip if first cell contains instruction text
+          if (row[0] && (row[0].includes('titles should not be modified') || row[0].startsWith('('))) {
+            console.log('⏭️ Skipping instruction row:', row[0]);
+            return false;
+          }
+          console.log('✓ Valid data row found:', row[0]);
+          return true;
+        });
+        
+        console.log(`📊 Processing ${dataRows.length} data rows (filtered from ${rowsData.length - 1} total rows)`);
+        
+        if (dataRows.length === 0) {
+          console.error('❌ No valid data rows found');
+          return c.json({ error: "No valid data rows found in the file" }, 400);
+        }
+        
         // Find all user IDs by name or email (assignee, reporter, creator from columns 8, 9, 10)
         const userNamesSet = new Set();
-        rowsData.slice(1).forEach(row => {
+        dataRows.forEach(row => {
           if (row[8]) userNamesSet.add(row[8].trim()); // Assignee
           if (row[9]) userNamesSet.add(row[9].trim()); // Reporter
           if (row[10]) userNamesSet.add(row[10].trim()); // Creator
@@ -1054,10 +1169,15 @@ const app = new Hono()
         const BATCH_SIZE = 100;
         const taskDataBatch = [];
         
-        for (let i = 1; i < rowsData.length; i++) {
-          const row = rowsData[i];
+        for (let i = 0; i < dataRows.length; i++) {
+          const row = dataRows[i];
           
-          if (row.length < 2 || !row[1]) continue; // Skip empty rows - Summary must have content
+          console.log(`\n📝 Processing row ${i + 1}/${dataRows.length}:`, row.slice(0, 5));
+          
+          if (row.length < 2 || !row[0]) {
+            console.log('⏭️ Skipping row - no summary');
+            continue; // Skip empty rows - Summary must have content
+          }
           
           // Map CSV columns to fields
           // Expected columns: Summary, Summary id, Issue id, Issue Type, Status, Project name, 
@@ -1195,7 +1315,7 @@ const app = new Hono()
           taskDataBatch.push(taskData);
           
           // Insert batch when it reaches BATCH_SIZE or at the end
-          if (taskDataBatch.length >= BATCH_SIZE || i === rowsData.length - 1) {
+          if (taskDataBatch.length >= BATCH_SIZE || i === dataRows.length - 1) {
             try {
               const insertedTasks = await db
                 .insert(tasks)
@@ -1212,8 +1332,13 @@ const app = new Hono()
                 try {
                   const [newTask] = await db.insert(tasks).values(failedTask).returning();
                   createdTasks.push(newTask);
-                } catch (singleError) {
-                  console.error(`❌ Failed to insert task: ${failedTask.summary}`, singleError);
+                } catch (singleError: any) {
+                  // Check if it's a duplicate key error
+                  if (singleError?.cause?.code === '23505' && singleError?.cause?.constraint_name === 'tasks_issue_id_unique') {
+                    console.log(`⚠️  Skipping duplicate task with issue_id: ${failedTask.issueId}`);
+                  } else {
+                    console.error(`❌ Failed to insert task: ${failedTask.summary}`, singleError);
+                  }
                 }
               }
               taskDataBatch.length = 0; // Clear batch
@@ -1221,15 +1346,18 @@ const app = new Hono()
           }
         }
 
-        console.log(`\n🎉 Upload complete! Created ${createdTasks.length} tasks`);
+        // Don't log after this point to avoid response corruption
+        const totalCreated = createdTasks.length;
+        const batchId = uploadBatchId;
 
+        // Return minimal response to avoid ERR_CONTENT_LENGTH_MISMATCH
         return c.json({ 
           data: { 
-            message: `Successfully imported ${createdTasks.length} tasks`,
-            uploadBatchId: uploadBatchId,
-            tasks: createdTasks 
+            message: `Successfully imported ${totalCreated} tasks`,
+            uploadBatchId: batchId,
+            count: totalCreated
           } 
-        });
+        }, 200);
         
       } catch (error) {
         console.error('❌ Excel upload error:', error);

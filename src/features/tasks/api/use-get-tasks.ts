@@ -11,6 +11,8 @@ interface UseGetTasksProps {
   assigneeId?: string | null;
   dueDate?: string | null;
   search?: string | null;
+  month?: string | null;
+  week?: string | null;
   limit?: number;
   offset?: number;
 }
@@ -22,11 +24,13 @@ export const useGetTasks = ({
   assigneeId,
   dueDate,
   search,
+  month,
+  week,
   limit = 2000,  // Increased to support showing all tasks
   offset = 0,
 }: UseGetTasksProps) => {
   const query = useQuery({
-    queryKey: ["tasks", workspaceId, projectId, status, assigneeId, dueDate, search, limit, offset],
+    queryKey: ["tasks", workspaceId, projectId, status, assigneeId, dueDate, search, month, week, limit, offset],
     queryFn: async () => {
       const startTime = performance.now();
       
@@ -38,6 +42,8 @@ export const useGetTasks = ({
           assigneeId: assigneeId ?? undefined,
           dueDate: dueDate ?? undefined,
           search: search ?? undefined,
+          month: month ?? undefined,
+          week: week ?? undefined,
           limit: limit?.toString(),
           offset: offset?.toString(),
         },

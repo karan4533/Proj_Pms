@@ -14,17 +14,17 @@ interface AdminGuardProps {
  */
 export const AdminGuard = ({ children }: AdminGuardProps) => {
   const router = useRouter();
-  const isAdmin = useIsGlobalAdmin();
+  const { data: isAdmin, isLoading } = useIsGlobalAdmin();
 
   useEffect(() => {
-    if (isAdmin === false) {
+    if (!isLoading && isAdmin === false) {
       // User is employee, redirect to dashboard
       router.push("/dashboard");
     }
-  }, [isAdmin, router]);
+  }, [isAdmin, isLoading, router]);
 
   // Show loading while checking permission
-  if (isAdmin === null || isAdmin === undefined) {
+  if (isLoading || isAdmin === null || isAdmin === undefined) {
     return (
       <div className="h-full flex items-center justify-center">
         <Loader className="size-6 animate-spin text-muted-foreground" />

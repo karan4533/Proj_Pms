@@ -1,8 +1,9 @@
-import { FolderIcon, ListChecksIcon, UserIcon } from "lucide-react";
+import { FolderIcon, ListChecksIcon, UserIcon, CalendarIcon, CalendarRangeIcon } from "lucide-react";
 
 import { useGetMembers } from "@/features/members/api/use-get-members";
 import { useGetProjects } from "@/features/projects/api/use-get-projects";
 import { useWorkspaceId } from "@/features/workspaces/hooks/use-workspace-id";
+import { useIsGlobalAdmin } from "@/features/members/api/use-get-user-role";
 
 import { DatePicker } from "@/components/date-picker";
 import {
@@ -23,6 +24,7 @@ interface DataFiltersProps {
 
 export const DataFilters = ({ hideProjectFilter }: DataFiltersProps) => {
   const workspaceId = useWorkspaceId();
+  const { data: isAdmin, isLoading: isLoadingRole } = useIsGlobalAdmin();
 
   const { data: projects, isLoading: isLoadingProjects } = useGetProjects({
     workspaceId,
@@ -43,7 +45,7 @@ export const DataFilters = ({ hideProjectFilter }: DataFiltersProps) => {
     label: member.name,
   }));
 
-  const [{ status, assigneeId, projectId, dueDate }, setFilters] =
+  const [{ status, assigneeId, projectId, dueDate, month, week }, setFilters] =
     useTaskFilters();
 
   const onStatusChange = (value: string) => {
@@ -67,6 +69,22 @@ export const DataFilters = ({ hideProjectFilter }: DataFiltersProps) => {
       setFilters({ projectId: null });
     } else {
       setFilters({ projectId: value as string });
+    }
+  };
+
+  const onMonthChange = (value: string) => {
+    if (value === "all") {
+      setFilters({ month: null });
+    } else {
+      setFilters({ month: value });
+    }
+  };
+
+  const onWeekChange = (value: string) => {
+    if (value === "all") {
+      setFilters({ week: null });
+    } else {
+      setFilters({ week: value });
     }
   };
 
@@ -96,26 +114,68 @@ export const DataFilters = ({ hideProjectFilter }: DataFiltersProps) => {
           <SelectItem value={TaskStatus.DONE}>Done</SelectItem>
         </SelectContent>
       </Select>
+      {isAdmin && (
+        <Select
+          defaultValue={assigneeId ?? undefined}
+          onValueChange={(value) => {
+            onAssigneeChange(value);
+          }}
+        >
+          <SelectTrigger className="w-full lg:w-auto h-8">
+            <div className="flex items-center pr-2">
+              <UserIcon className="size-4 mr-2" />
+              <SelectValue placeholder="All assignees" />
+            </div>
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All assignees</SelectItem>
+            <SelectSeparator />
+            {memberOptions?.map((member) => (
+              <SelectItem key={member.value} value={member.value}>
+                {member.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      )}
       <Select
-        defaultValue={assigneeId ?? undefined}
+        defaultValue={month ?? undefined}
         onValueChange={(value) => {
-          onAssigneeChange(value);
+          onMonthChange(value);
         }}
       >
         <SelectTrigger className="w-full lg:w-auto h-8">
           <div className="flex items-center pr-2">
-            <UserIcon className="size-4 mr-2" />
-            <SelectValue placeholder="All assignees" />
+            <CalendarIcon className="size-4 mr-2" />
+            <SelectValue placeholder="All months" />
           </div>
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="all">All assignees</SelectItem>
+          <SelectItem value="all">All months</SelectItem>
           <SelectSeparator />
-          {memberOptions?.map((member) => (
-            <SelectItem key={member.value} value={member.value}>
-              {member.label}
-            </SelectItem>
-          ))}
+          <SelectItem value="current">This Month</SelectItem>
+          <SelectItem value="last">Last Month</SelectItem>
+          <SelectItem value="next">Next Month</SelectItem>
+        </SelectContent>
+      </Select>
+      <Select
+        defaultValue={week ?? undefined}
+        onValueChange={(value) => {
+          onWeekChange(value);
+        }}
+      >
+        <SelectTrigger className="w-full lg:w-auto h-8">
+          <div className="flex items-center pr-2">
+            <CalendarRangeIcon className="size-4 mr-2" />
+            <SelectValue placeholder="All weeks" />
+          </div>
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="all">All weeks</SelectItem>
+          <SelectSeparator />
+          <SelectItem value="current">This Week</SelectItem>
+          <SelectItem value="last">Last Week</SelectItem>
+          <SelectItem value="next">Next Week</SelectItem>
         </SelectContent>
       </Select>
       {!hideProjectFilter && (

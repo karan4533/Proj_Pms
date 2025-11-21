@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useRef } from "react";
-import { Upload, FileSpreadsheet, X, CheckCircle, AlertCircle, LoaderIcon } from "lucide-react";
+import { Upload, FileSpreadsheet, X, CheckCircle, AlertCircle, LoaderIcon, Download } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -92,6 +92,78 @@ export const ExcelUploadCard = () => {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
+  const handleDownloadTemplate = () => {
+    // Create Excel file with yellow header row using xlsx library approach
+    // For now, create CSV and note that yellow formatting needs to be done in Excel
+    // To add actual yellow color, you'll need to install xlsx library: npm install xlsx
+    
+    const headers = [
+      'Summary',
+      'Summary id',
+      'Issue id',
+      'Issue Type',
+      'Status',
+      'Project name',
+      'Priority',
+      'Resolution',
+      'Assignee',
+      'Reporter',
+      'Creator',
+      'Created',
+      'Updated',
+      'Resolved',
+      'Due date',
+      'Labels'
+    ];
+
+    const emptyRow1 = ['', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''];
+    const emptyRow2 = ['', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''];
+    
+    const instructionRow = [
+      '(The titles should not be modified under any circumstances.)',
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      ''
+    ];
+
+    // Create CSV content with BOM for Excel compatibility
+    const csvContent = '\uFEFF' + [
+      headers.join(','),
+      emptyRow1.join(','),
+      emptyRow2.join(','),
+      instructionRow.join(',')
+    ].join('\n');
+
+    // Create and trigger download
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    
+    link.setAttribute('href', url);
+    link.setAttribute('download', 'task_import_template.csv');
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    // Note: To add yellow background color to headers, you need to:
+    // 1. Install xlsx library: npm install xlsx
+    // 2. Generate .xlsx file instead of .csv
+    // CSV format doesn't support cell formatting/colors
+  };
+
   const handleUpload = () => {
     if (!file || !projectId) {
       return;
@@ -128,15 +200,28 @@ export const ExcelUploadCard = () => {
   return (
     <Card className="w-full max-w-2xl">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <FileSpreadsheet className="h-5 w-5" />
-          Bulk Task Import
-        </CardTitle>
-        <CardDescription>
-          Upload a CSV file to create multiple tasks at once. Select a project and optionally choose default assignees.
-          <br />
-          <Badge variant="outline" className="mt-2">CSV format only - Up to 100MB</Badge>
-        </CardDescription>
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle className="flex items-center gap-2">
+              <FileSpreadsheet className="h-5 w-5" />
+              Bulk Task Import
+            </CardTitle>
+            <CardDescription>
+              Upload a CSV file to create multiple tasks at once. Select a project and optionally choose default assignees.
+              <br />
+              <Badge variant="outline" className="mt-2">CSV format only - Up to 100MB</Badge>
+            </CardDescription>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleDownloadTemplate}
+            className="flex items-center gap-2"
+          >
+            <Download className="h-4 w-4" />
+            Download Template
+          </Button>
+        </div>
       </CardHeader>
       <CardContent className="space-y-6">
         {/* Choose Project Dropdown */}

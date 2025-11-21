@@ -25,7 +25,7 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { useCreateTaskOverview } from "../api/use-create-task-overview";
+import { useCreateTaskOverview } from "@/features/tasks/api/use-create-task-overview";
 import { Task } from "../types";
 
 const taskOverviewSchema = z.object({

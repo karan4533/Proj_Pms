@@ -33,7 +33,7 @@ interface TaskViewSwitcherProps {
 export const TaskViewSwitcher = ({
   hideProjectFilter,
 }: TaskViewSwitcherProps) => {
-  const [{ status, assigneeId, projectId, dueDate }, setFilters] = useTaskFilters();
+  const [{ status, assigneeId, projectId, dueDate, month, week }, setFilters] = useTaskFilters();
   const [view, setView] = useQueryState("task-view", { defaultValue: "table" });
   const { mutate: bulkUpdate } = useBulkUpdateTasks();
 
@@ -52,6 +52,8 @@ export const TaskViewSwitcher = ({
     assigneeId,
     status,
     dueDate,
+    month,
+    week,
     limit: 2000, // Support large CSV uploads (e.g., 1276 rows)
   });
 
