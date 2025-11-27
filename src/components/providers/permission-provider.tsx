@@ -44,6 +44,8 @@ export function PermissionProvider({
   userProjects = [],
   teamMemberIds = [],
 }: PermissionProviderProps) {
+  console.log('[PermissionProvider] Initialized with:', { role, userId, workspaceId });
+  
   // Helper function to check permissions based on role
   const hasPermission = (action: string): boolean => {
     switch (action) {
@@ -88,41 +90,55 @@ export function PermissionProvider({
   };
 
   const canEditTask = (taskOwnerId?: string): boolean => {
-    // Employees can edit their own tasks (personal tasks)
+    console.log('[Permission Check] canEditTask:', { 
+      role, 
+      userId, 
+      taskOwnerId,
+      isAdmin: [MemberRole.ADMIN, MemberRole.PROJECT_MANAGER].includes(role)
+    });
+    
+    // Admin and Project Manager can edit all tasks
+    if ([MemberRole.ADMIN, MemberRole.PROJECT_MANAGER].includes(role)) {
+      console.log('[Permission Check] Admin/PM access granted');
+      return true;
+    }
+    
+    // Employees can only edit their own tasks
     if (role === MemberRole.EMPLOYEE) {
-      return taskOwnerId === userId;
+      const canEdit = taskOwnerId === userId;
+      console.log('[Permission Check] Employee access:', canEdit, { taskOwnerId, userId });
+      return canEdit;
     }
-    // Management has read-only access
-    if (role === MemberRole.MANAGEMENT) {
-      return false;
-    }
-    if (role === MemberRole.TEAM_LEAD) {
-      return taskOwnerId ? teamMemberIds.includes(taskOwnerId) : false;
-    }
-    return [MemberRole.ADMIN, MemberRole.PROJECT_MANAGER].includes(role);
+    
+    // All other roles have read-only access (TEAM_LEAD, MANAGEMENT)
+    console.log('[Permission Check] Other role - read only');
+    return false;
   };
 
   const canChangeStatus = (taskOwnerId?: string): boolean => {
-    // Employees can change status on their own tasks
+    // Admin and Project Manager can change status on all tasks
+    if ([MemberRole.ADMIN, MemberRole.PROJECT_MANAGER].includes(role)) {
+      return true;
+    }
+    // Employees can change status on their own tasks only
     if (role === MemberRole.EMPLOYEE) {
       return taskOwnerId === userId;
     }
-    // Management has read-only access
-    if (role === MemberRole.MANAGEMENT) {
-      return false;
-    }
-    return [MemberRole.ADMIN, MemberRole.PROJECT_MANAGER, MemberRole.TEAM_LEAD].includes(role);
+    // All other roles cannot change status (read-only)
+    return false;
   };
 
   const canDeleteTask = (taskOwnerId?: string, taskProjectId?: string | null): boolean => {
-    // Admins can delete all tasks
+    // Admin and Project Manager can delete all tasks
     if (role === MemberRole.ADMIN || role === MemberRole.PROJECT_MANAGER) {
       return true;
     }
-    // Employees can ONLY delete their own individual tasks (no project)
+    // Employees can only delete their own INDIVIDUAL tasks (no project)
     if (role === MemberRole.EMPLOYEE) {
-      return taskOwnerId === userId && taskProjectId === null;
+      const isIndividualTask = taskProjectId === null;
+      return isIndividualTask && taskOwnerId === userId;
     }
+    // All other roles cannot delete tasks (read-only)
     return false;
   };
 

@@ -19,9 +19,8 @@ export const useSaveDraft = () => {
 
       return await response.json();
     },
-    onSuccess: (data) => {
-      toast.success(data.message || "Draft saved successfully");
-      queryClient.invalidateQueries({ queryKey: ["my-weekly-reports"] });
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["my-reports"] });
     },
     onError: (error) => {
       toast.error(error.message || "Failed to save draft");

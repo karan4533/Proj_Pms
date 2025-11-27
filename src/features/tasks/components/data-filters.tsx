@@ -139,6 +139,26 @@ export const DataFilters = ({ hideProjectFilter }: DataFiltersProps) => {
           <SelectItem value="next">Next Month</SelectItem>
         </SelectContent>
       </Select>
+      <Select
+        defaultValue={week ?? undefined}
+        onValueChange={(value) => {
+          onWeekChange(value);
+        }}
+      >
+        <SelectTrigger className="w-full lg:w-auto h-8">
+          <div className="flex items-center pr-2">
+            <CalendarRangeIcon className="size-4 mr-2" />
+            <SelectValue placeholder="All weeks" />
+          </div>
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="all">All weeks</SelectItem>
+          <SelectSeparator />
+          <SelectItem value="current">This Week</SelectItem>
+          <SelectItem value="last">Last Week</SelectItem>
+          <SelectItem value="next">Next Week</SelectItem>
+        </SelectContent>
+      </Select>
       {mounted && isAdmin && (
         <Select
           defaultValue={assigneeId ?? undefined}
@@ -163,26 +183,6 @@ export const DataFilters = ({ hideProjectFilter }: DataFiltersProps) => {
           </SelectContent>
         </Select>
       )}
-      <Select
-        defaultValue={week ?? undefined}
-        onValueChange={(value) => {
-          onWeekChange(value);
-        }}
-      >
-        <SelectTrigger className="w-full lg:w-auto h-8">
-          <div className="flex items-center pr-2">
-            <CalendarRangeIcon className="size-4 mr-2" />
-            <SelectValue placeholder="All weeks" />
-          </div>
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="all">All weeks</SelectItem>
-          <SelectSeparator />
-          <SelectItem value="current">This Week</SelectItem>
-          <SelectItem value="last">Last Week</SelectItem>
-          <SelectItem value="next">Next Week</SelectItem>
-        </SelectContent>
-      </Select>
       {!hideProjectFilter && (
         <Select
           defaultValue={projectId ?? undefined}

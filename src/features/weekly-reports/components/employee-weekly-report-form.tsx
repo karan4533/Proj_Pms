@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { format, eachDayOfInterval, parseISO } from "date-fns";
 import { Calendar, Upload, Loader2, FileIcon, X } from "lucide-react";
 import { useForm } from "react-hook-form";
@@ -43,7 +43,7 @@ export function EmployeeWeeklyReportForm({ userDepartment }: { userDepartment?: 
   const { mutate: submitReport, isPending } = useSubmitWeeklyReport();
   const { mutate: saveDraft, isPending: isSavingDraft } = useSaveDraft();
   const { mutate: updateDraft, isPending: isUpdatingDraft } = useUpdateDraft();
-  const { refetch: refetchMyReports } = useGetMyReports();
+  const { data: myReports, refetch: refetchMyReports } = useGetMyReports();
   const { data: customDepartments, isLoading: isLoadingDepartments } = useGetDepartments();
 
   const {
@@ -79,27 +79,83 @@ export function EmployeeWeeklyReportForm({ userDepartment }: { userDepartment?: 
     }
   }, [fromDate, toDate]);
 
-  // Initialize daily entries when days change
-  useMemo(() => {
-    if (days.length > 0) {
-      const newEntries: Record<string, DailyEntry> = {};
-      days.forEach((day) => {
-        const dateStr = format(day, "yyyy-MM-dd");
-        if (!dailyEntries[dateStr]) {
-          newEntries[dateStr] = {
-            date: dateStr,
-            description: "",
-            files: [],
-          };
-        } else {
-          newEntries[dateStr] = dailyEntries[dateStr];
-        }
+  // Load existing draft when date range and reports are available
+  useEffect(() => {
+    if (fromDate && toDate && myReports && myReports.length > 0) {
+      console.log('[Draft Load] Checking for existing drafts...', { fromDate, toDate, reportsCount: myReports.length });
+      
+      // Find a draft for this date range
+      const existingDraft = myReports.find((report: any) => {
+        if (report.isDraft !== 'true') return false;
+        
+        const reportFrom = format(parseISO(report.fromDate.toString()), "yyyy-MM-dd");
+        const reportTo = format(parseISO(report.toDate.toString()), "yyyy-MM-dd");
+        
+        return reportFrom === fromDate && reportTo === toDate;
       });
-      setDailyEntries(newEntries);
+
+      if (existingDraft) {
+        console.log('[Draft Load] Found existing draft:', existingDraft.id);
+        
+        // Only load if it's a different draft or if we don't have a current draft ID
+        if (currentDraftId !== existingDraft.id) {
+          // Load draft data
+          setCurrentDraftId(existingDraft.id);
+          setSelectedDepartment(existingDraft.department);
+          setValue("department", existingDraft.department);
+
+          // Load daily descriptions
+          const loadedEntries: Record<string, DailyEntry> = {};
+          const dailyDescs = existingDraft.dailyDescriptions as Record<string, string>;
+          
+          if (dailyDescs && typeof dailyDescs === 'object') {
+            Object.keys(dailyDescs).forEach((date) => {
+              loadedEntries[date] = {
+                date,
+                description: dailyDescs[date] || "",
+                files: [], // Files are already uploaded, so we don't load them back as File objects
+              };
+            });
+
+            setDailyEntries(loadedEntries);
+            console.log('[Draft Load] Loaded entries:', Object.keys(loadedEntries).length);
+            toast.info("Existing draft loaded for this date range", { duration: 3000 });
+          }
+        } else {
+          console.log('[Draft Load] Draft already loaded, skipping to preserve edits');
+        }
+      } else {
+        console.log('[Draft Load] No existing draft found for this date range');
+        // Clear current draft ID if date range changed and no draft exists
+        if (currentDraftId) {
+          setCurrentDraftId(null);
+        }
+      }
+    }
+  }, [fromDate, toDate, myReports, setValue]);
+
+  // Initialize daily entries when days change (but preserve existing data)
+  useEffect(() => {
+    if (days.length > 0) {
+      setDailyEntries((prev) => {
+        const newEntries: Record<string, DailyEntry> = { ...prev };
+        days.forEach((day) => {
+          const dateStr = format(day, "yyyy-MM-dd");
+          if (!newEntries[dateStr]) {
+            newEntries[dateStr] = {
+              date: dateStr,
+              description: "",
+              files: [],
+            };
+          }
+        });
+        return newEntries;
+      });
     }
   }, [days]);
 
   const updateDescription = (date: string, description: string) => {
+    console.log('[Description Update]', date, 'length:', description.length);
     setDailyEntries((prev) => ({
       ...prev,
       [date]: { ...prev[date], description },
@@ -161,28 +217,66 @@ export function EmployeeWeeklyReportForm({ userDepartment }: { userDepartment?: 
       });
     });
 
-    submitReport(
-      {
-        json: {
-          fromDate: data.fromDate,
-          toDate: data.toDate,
-          department: data.department,
-          dailyDescriptions,
-          uploadedFiles,
-          isDraft: false,
+    // If there's an existing draft, update it to submitted status
+    if (currentDraftId) {
+      updateDraft(
+        {
+          param: { id: currentDraftId },
+          json: {
+            fromDate: data.fromDate,
+            toDate: data.toDate,
+            department: data.department,
+            dailyDescriptions,
+            uploadedFiles,
+            isDraft: false, // Convert draft to submitted
+          },
         },
-      },
-      {
-        onSuccess: () => {
-          toast.success("Weekly report submitted successfully!");
-          reset();
-          setDailyEntries({});
-          setDateRange(null);
-          setCurrentDraftId(null);
-          refetchMyReports();
+        {
+          onSuccess: () => {
+            toast.success("Weekly report submitted successfully! Your report is now visible to admins.", {
+              duration: 5000,
+            });
+            reset();
+            setDailyEntries({});
+            setDateRange(null);
+            setCurrentDraftId(null);
+            refetchMyReports();
+          },
+          onError: () => {
+            toast.error("Failed to submit weekly report. Please try again.");
+          },
+        }
+      );
+    } else {
+      // No existing draft, create new submitted report
+      submitReport(
+        {
+          json: {
+            fromDate: data.fromDate,
+            toDate: data.toDate,
+            department: data.department,
+            dailyDescriptions,
+            uploadedFiles,
+            isDraft: false,
+          },
         },
-      }
-    );
+        {
+          onSuccess: () => {
+            toast.success("Weekly report submitted successfully! Your report is now visible to admins.", {
+              duration: 5000,
+            });
+            reset();
+            setDailyEntries({});
+            setDateRange(null);
+            setCurrentDraftId(null);
+            refetchMyReports();
+          },
+          onError: () => {
+            toast.error("Failed to submit weekly report. Please try again.");
+          },
+        }
+      );
+    }
   };
 
   const saveDailyDraft = (date: string) => {
@@ -192,11 +286,16 @@ export function EmployeeWeeklyReportForm({ userDepartment }: { userDepartment?: 
       department: watch("department") || selectedDepartment,
     };
 
+    console.log('[Draft Save] Starting draft save for date:', date);
+    console.log('[Draft Save] Form data:', data);
+    console.log('[Draft Save] Current draft ID:', currentDraftId);
+
     if (!data.fromDate || !data.toDate || !data.department) {
       toast.error("Please fill in the date range and department first");
       return;
     }
 
+    // Build daily descriptions object - save ALL entries
     const dailyDescriptions: Record<string, string> = {};
     const uploadedFiles: any[] = [];
 
@@ -214,6 +313,9 @@ export function EmployeeWeeklyReportForm({ userDepartment }: { userDepartment?: 
       });
     });
 
+    console.log('[Draft Save] Daily descriptions count:', Object.keys(dailyDescriptions).length);
+    console.log('[Draft Save] Uploaded files count:', uploadedFiles.length);
+
     const draftData = {
       fromDate: data.fromDate,
       toDate: data.toDate,
@@ -223,8 +325,11 @@ export function EmployeeWeeklyReportForm({ userDepartment }: { userDepartment?: 
       isDraft: true,
     };
 
+    console.log('[Draft Save] Draft data prepared:', { ...draftData, dailyDescriptions: Object.keys(dailyDescriptions) });
+
     if (currentDraftId) {
-      // Update existing draft
+      console.log('[Draft Save] Updating existing draft:', currentDraftId);
+      // Update existing draft with all entries
       updateDraft(
         {
           param: { id: currentDraftId },
@@ -232,24 +337,40 @@ export function EmployeeWeeklyReportForm({ userDepartment }: { userDepartment?: 
         },
         {
           onSuccess: () => {
-            toast.success(`Draft saved for ${format(parseISO(date), "MMM dd")}`);
+            console.log('[Draft Save] Draft updated successfully');
+            toast.success(`Draft saved for ${format(parseISO(date), "MMM dd")}! All daily entries saved.`, {
+              duration: 3000,
+            });
             refetchMyReports();
+          },
+          onError: (error) => {
+            console.error('[Draft Save] Error updating draft:', error);
+            toast.error("Failed to save draft. Please try again.");
           },
         }
       );
     } else {
-      // Create new draft
+      console.log('[Draft Save] Creating new draft');
+      // Create new draft with all entries
       saveDraft(
         {
           json: draftData,
         },
         {
           onSuccess: (response) => {
+            console.log('[Draft Save] Draft created successfully:', response);
             if (response.data) {
               setCurrentDraftId(response.data.id);
+              console.log('[Draft Save] Set current draft ID to:', response.data.id);
             }
-            toast.success(`Draft saved for ${format(parseISO(date), "MMM dd")}`);
+            toast.success(`Draft saved for ${format(parseISO(date), "MMM dd")}! All daily entries saved.`, {
+              duration: 3000,
+            });
             refetchMyReports();
+          },
+          onError: (error) => {
+            console.error('[Draft Save] Error creating draft:', error);
+            toast.error("Failed to save draft. Please try again.");
           },
         }
       );

@@ -1,14 +1,34 @@
 import { z } from "zod";
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
-import { eq, and } from "drizzle-orm";
+import { eq, and, inArray } from "drizzle-orm";
 
 import { sessionMiddleware } from "@/lib/session-middleware";
 import { db } from "@/db";
-import { members, users } from "@/db/schema";
+import { members, users, tasks } from "@/db/schema";
 
 import { getMember } from "../utils";
 import { MemberRole } from "../types";
+
+/**
+ * Check if user is admin by checking their role in any workspace
+ */
+async function isUserAdmin(userId: string): Promise<boolean> {
+  const memberRoles = await db
+    .select({ role: members.role })
+    .from(members)
+    .where(eq(members.userId, userId))
+    .limit(1);
+  
+  if (memberRoles.length === 0) return false;
+  
+  const role = memberRoles[0].role;
+  return [
+    MemberRole.ADMIN,
+    MemberRole.PROJECT_MANAGER,
+    MemberRole.MANAGEMENT,
+  ].includes(role as MemberRole);
+}
 
 const app = new Hono()
   .post(
@@ -88,27 +108,118 @@ const app = new Hono()
       const user = c.get("user");
       const { workspaceId } = c.req.valid("query");
 
-      // If no workspaceId, return all users (removing workspace concept)
-      if (!workspaceId) {
-        const membersList = await db
-          .select({
-            id: users.id,
-            userId: users.id,
-            workspaceId: users.id, // Placeholder for compatibility
-            role: users.id, // Placeholder
-            createdAt: users.createdAt,
-            updatedAt: users.updatedAt,
-            name: users.name,
-            email: users.email,
-          })
-          .from(users);
+      // Check if user is admin
+      const adminCheck = await isUserAdmin(user.id);
 
-        return c.json({
-          data: {
-            documents: membersList,
-            total: membersList.length,
-          },
-        });
+      // If no workspaceId provided
+      if (!workspaceId) {
+        if (adminCheck) {
+          // Admins: Return all users
+          const membersList = await db
+            .select({
+              id: users.id,
+              userId: users.id,
+              workspaceId: users.id, // Placeholder for compatibility
+              role: users.id, // Placeholder
+              createdAt: users.createdAt,
+              updatedAt: users.updatedAt,
+              name: users.name,
+              email: users.email,
+            })
+            .from(users);
+
+          return c.json({
+            data: {
+              documents: membersList,
+              total: membersList.length,
+            },
+          });
+        } else {
+          // Employees: Return only users who have tasks in the same projects
+          // First, get all projects where the employee has tasks
+          const employeeProjects = await db
+            .select({ projectId: tasks.projectId })
+            .from(tasks)
+            .where(
+              and(
+                eq(tasks.assigneeId, user.id),
+                // Exclude null projectIds
+                // @ts-ignore
+                eq(tasks.projectId, tasks.projectId)
+              )
+            )
+            .groupBy(tasks.projectId);
+          
+          const projectIds = employeeProjects
+            .map(p => p.projectId)
+            .filter((id): id is string => id !== null);
+          
+          if (projectIds.length === 0) {
+            // No projects, return only self
+            const [selfUser] = await db
+              .select({
+                id: users.id,
+                userId: users.id,
+                workspaceId: users.id,
+                role: users.id,
+                createdAt: users.createdAt,
+                updatedAt: users.updatedAt,
+                name: users.name,
+                email: users.email,
+              })
+              .from(users)
+              .where(eq(users.id, user.id))
+              .limit(1);
+            
+            return c.json({
+              data: {
+                documents: selfUser ? [selfUser] : [],
+                total: selfUser ? 1 : 0,
+              },
+            });
+          }
+          
+          // Get all users who have tasks in these projects
+          const relatedUsers = await db
+            .select({ assigneeId: tasks.assigneeId })
+            .from(tasks)
+            .where(inArray(tasks.projectId, projectIds))
+            .groupBy(tasks.assigneeId);
+          
+          const userIds = relatedUsers
+            .map(u => u.assigneeId)
+            .filter((id): id is string => id !== null);
+          
+          if (userIds.length === 0) {
+            return c.json({
+              data: {
+                documents: [],
+                total: 0,
+              },
+            });
+          }
+          
+          const membersList = await db
+            .select({
+              id: users.id,
+              userId: users.id,
+              workspaceId: users.id,
+              role: users.id,
+              createdAt: users.createdAt,
+              updatedAt: users.updatedAt,
+              name: users.name,
+              email: users.email,
+            })
+            .from(users)
+            .where(inArray(users.id, userIds));
+
+          return c.json({
+            data: {
+              documents: membersList,
+              total: membersList.length,
+            },
+          });
+        }
       }
 
       // Legacy support: filter by workspace if provided

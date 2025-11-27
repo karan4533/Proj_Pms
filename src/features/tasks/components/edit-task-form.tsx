@@ -32,6 +32,8 @@ import {
 import { createTaskSchema } from "../schemas";
 import { useUpdateTask } from "../api/use-update-task";
 import { Task, TaskStatus } from "../types";
+import { usePermissionContext } from "@/components/providers/permission-provider";
+import { MemberRole } from "@/features/members/types";
 
 interface EditTaskFormProps {
   onCancel?: () => void;
@@ -47,6 +49,24 @@ export const EditTaskForm = ({
   initialValues,
 }: EditTaskFormProps) => {
   const { mutate, isPending } = useUpdateTask();
+  const permissions = usePermissionContext();
+
+  // Check if this is an individual task (no workspaceId) AND user is an employee viewing their OWN task
+  const isIndividualTask = !initialValues.workspaceId;
+  const isOwnTask = initialValues.assigneeId === permissions.userId;
+  const isEmployee = permissions.role === MemberRole.EMPLOYEE;
+  const shouldHideAssigneeAndProject = isIndividualTask && isEmployee && isOwnTask;
+
+  console.log("EditTaskForm Debug:", {
+    workspaceId: initialValues.workspaceId,
+    isIndividualTask,
+    assigneeId: initialValues.assigneeId,
+    userId: permissions.userId,
+    isOwnTask,
+    role: permissions.role,
+    isEmployee,
+    shouldHideAssigneeAndProject
+  });
 
   const form = useForm<z.infer<typeof createTaskSchema>>({
     resolver: zodResolver(
@@ -113,39 +133,41 @@ export const EditTaskForm = ({
                   </FormItem>
                 )}
               />
-              <FormField
-                control={form.control}
-                name="assigneeId"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Assignee</FormLabel>
-                    <Select
-                      defaultValue={field.value}
-                      onValueChange={field.onChange}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select assignee" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <FormMessage />
-                      <SelectContent>
-                        {memberOptions.map((member) => (
-                          <SelectItem key={member.id} value={member.id}>
-                            <div className="flex items-center gap-x-2">
-                              <MemberAvatar
-                                className="size-6"
-                                name={member.name}
-                              />
-                              {member.name}
-                            </div>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </FormItem>
-                )}
-              />
+              {!shouldHideAssigneeAndProject && (
+                <FormField
+                  control={form.control}
+                  name="assigneeId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Assignee</FormLabel>
+                      <Select
+                        defaultValue={field.value}
+                        onValueChange={field.onChange}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select assignee" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <FormMessage />
+                        <SelectContent>
+                          {memberOptions.map((member) => (
+                            <SelectItem key={member.id} value={member.id}>
+                              <div className="flex items-center gap-x-2">
+                                <MemberAvatar
+                                  className="size-6"
+                                  name={member.name}
+                                />
+                                {member.name}
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </FormItem>
+                  )}
+                />
+              )}
               <FormField
                 control={form.control}
                 name="status"
@@ -179,40 +201,42 @@ export const EditTaskForm = ({
                   </FormItem>
                 )}
               />
-              <FormField
-                control={form.control}
-                name="projectId"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Project</FormLabel>
-                    <Select
-                      defaultValue={field.value}
-                      onValueChange={field.onChange}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select project" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <FormMessage />
-                      <SelectContent>
-                        {projectOptions.map((project) => (
-                          <SelectItem key={project.id} value={project.id}>
-                            <div className="flex items-center gap-x-2">
-                              <ProjectAvatar
-                                className="size-6"
-                                name={project.name}
-                                image={project.imageUrl}
-                              />
-                              {project.name}
-                            </div>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </FormItem>
-                )}
-              />
+              {!shouldHideAssigneeAndProject && (
+                <FormField
+                  control={form.control}
+                  name="projectId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Project</FormLabel>
+                      <Select
+                        defaultValue={field.value}
+                        onValueChange={field.onChange}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select project" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <FormMessage />
+                        <SelectContent>
+                          {projectOptions.map((project) => (
+                            <SelectItem key={project.id} value={project.id}>
+                              <div className="flex items-center gap-x-2">
+                                <ProjectAvatar
+                                  className="size-6"
+                                  name={project.name}
+                                  image={project.imageUrl}
+                                />
+                                {project.name}
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </FormItem>
+                  )}
+                />
+              )}
             </div>
             <DottedSeparator className="py-7" />
             <div className="flex items-center justify-between">

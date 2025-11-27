@@ -25,11 +25,14 @@ export const EditTaskFormWrapper = ({
     taskId: id,
   });
 
+  // Check if we have a valid workspaceId (not "undefined" string or null)
+  const hasValidWorkspace = workspaceId && workspaceId !== "undefined" && workspaceId !== "null";
+
   const { data: projects, isLoading: isLoadingProjects } = useGetProjects({
-    workspaceId,
+    workspaceId: hasValidWorkspace ? workspaceId : "",
   });
   const { data: members, isLoading: isLoadingMembers } = useGetMembers({
-    workspaceId,
+    workspaceId: hasValidWorkspace ? workspaceId : "",
   });
 
   const projectOptions = projects?.documents.map((project) => ({
@@ -49,11 +52,21 @@ export const EditTaskFormWrapper = ({
   console.log("EditTaskFormWrapper - Debug Info:", {
     id,
     workspaceId,
+    hasValidWorkspace,
     isLoadingTask,
     isLoadingProjects, 
     isLoadingMembers,
+    hasProjects: !!projects,
+    hasMembers: !!members,
+    projectCount: projectOptions?.length ?? 0,
+    memberCount: memberOptions?.length ?? 0,
     initialValues: !!initialValues,
-    taskData: initialValues ? { id: initialValues.id, summary: initialValues.summary } : null
+    taskData: initialValues ? { 
+      id: initialValues.id, 
+      summary: initialValues.summary,
+      workspaceId: initialValues.workspaceId,
+      projectId: initialValues.projectId
+    } : null
   });
 
   if (isLoading) {

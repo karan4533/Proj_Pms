@@ -14,6 +14,7 @@ import { TaskDate } from "./task-date";
 
 import { useEditTaskModal } from "../hooks/use-edit-task-modal";
 import { Task } from "../types";
+import { MemberRole } from "@/features/members/types";
 
 interface TaskOverviewProps {
   task: Task;
@@ -23,8 +24,11 @@ export const TaskOverview = ({ task }: TaskOverviewProps) => {
   const { open } = useEditTaskModal();
   const permissions = usePermissionContext();
 
-  // Check if user can edit this task (pass assigneeId for ownership check)
-  const canEdit = permissions.canEditTask(task.assigneeId);
+  // For employees: only allow editing individual tasks (no projectId) that they own
+  const isIndividualTask = task.projectId === null;
+  const canEdit = isIndividualTask
+    ? permissions.canEditTask(task.assigneeId)  // Individual task - check ownership
+    : permissions.role === MemberRole.ADMIN || permissions.role === MemberRole.PROJECT_MANAGER; // Project task - admin only
 
   return (
     <div className="flex flex-col gap-y-4 col-span-1">

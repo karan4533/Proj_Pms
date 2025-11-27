@@ -78,21 +78,67 @@ const app = new Hono()
       const user = c.get("user");
       const { workspaceId } = c.req.valid("query");
 
-      // Project-centric: Return all projects for authenticated user
-      // Optional workspaceId filter for legacy support
+      // Check if user is admin
+      const adminCheck = await isUserAdmin(user.id);
+      
       let projectList;
       
-      if (workspaceId) {
-        projectList = await db
-          .select()
-          .from(projects)
-          .where(eq(projects.workspaceId, workspaceId))
-          .orderBy(desc(projects.createdAt));
+      if (adminCheck) {
+        // Admins: Return all projects
+        if (workspaceId) {
+          projectList = await db
+            .select()
+            .from(projects)
+            .where(eq(projects.workspaceId, workspaceId))
+            .orderBy(desc(projects.createdAt));
+        } else {
+          projectList = await db
+            .select()
+            .from(projects)
+            .orderBy(desc(projects.createdAt));
+        }
       } else {
-        projectList = await db
-          .select()
-          .from(projects)
-          .orderBy(desc(projects.createdAt));
+        // Employees: Return only projects where they have tasks assigned
+        const userTasks = await db
+          .select({ projectId: tasks.projectId })
+          .from(tasks)
+          .where(
+            and(
+              eq(tasks.assigneeId, user.id),
+              // Exclude null projectIds (individual tasks)
+              // @ts-ignore - SQL comparison with null
+              eq(tasks.projectId, tasks.projectId)
+            )
+          )
+          .groupBy(tasks.projectId);
+        
+        const projectIds = userTasks
+          .map(t => t.projectId)
+          .filter((id): id is string => id !== null);
+        
+        if (projectIds.length === 0) {
+          // No projects with assigned tasks
+          return c.json({ data: { documents: [], total: 0 } });
+        }
+        
+        if (workspaceId) {
+          projectList = await db
+            .select()
+            .from(projects)
+            .where(
+              and(
+                eq(projects.workspaceId, workspaceId),
+                inArray(projects.id, projectIds)
+              )
+            )
+            .orderBy(desc(projects.createdAt));
+        } else {
+          projectList = await db
+            .select()
+            .from(projects)
+            .where(inArray(projects.id, projectIds))
+            .orderBy(desc(projects.createdAt));
+        }
       }
 
       return c.json({ data: { documents: projectList, total: projectList.length } });

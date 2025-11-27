@@ -29,20 +29,31 @@ const app = new Hono()
     async (c) => {
       const user = c.get('user');
 
-      // Check if user is employee (not admin)
+      // Check if user is employee (can be employee even if they have other roles)
       const memberRecords = await db
         .select()
         .from(members)
         .where(eq(members.userId, user.id));
 
       const isEmployee = memberRecords.some(m => m.role === MemberRole.EMPLOYEE);
-      const isAdmin = memberRecords.some(m => m.role === MemberRole.ADMIN || m.role === MemberRole.PROJECT_MANAGER || m.role === MemberRole.MANAGEMENT);
+      
+      console.log('[Weekly Report Draft] User:', user.id, 'Has Employee role:', isEmployee, 'Member records:', memberRecords.length);
 
-      if (isAdmin || !isEmployee) {
+      if (!isEmployee) {
+        console.log('[Weekly Report Draft] Access denied - user is not an employee');
         return c.json({ error: 'Only employees can submit weekly reports' }, 403);
       }
 
       const { fromDate, toDate, department, dailyDescriptions, uploadedFiles, isDraft } = c.req.valid('json');
+
+      console.log('[Weekly Report Draft] Creating report:', {
+        userId: user.id,
+        isDraft,
+        fromDate,
+        toDate,
+        department,
+        dailyDescCount: Object.keys(dailyDescriptions).length
+      });
 
       try {
         // Create the weekly report (draft or final)
@@ -57,12 +68,14 @@ const app = new Hono()
           isDraft: isDraft ? 'true' : 'false',
         }).returning();
 
+        console.log('[Weekly Report Draft] Report created successfully:', report.id, 'isDraft:', report.isDraft);
+
         return c.json({ 
           data: report, 
           message: isDraft ? 'Draft saved successfully' : 'Weekly report submitted successfully' 
         });
       } catch (error) {
-        console.error('Error submitting weekly report:', error);
+        console.error('[Weekly Report Draft] Error submitting weekly report:', error);
         return c.json({ error: 'Failed to submit weekly report' }, 500);
       }
     }
@@ -91,6 +104,8 @@ const app = new Hono()
       const { id } = c.req.param();
       const updateData = c.req.valid('json');
 
+      console.log('[Weekly Report Update] User:', user.id, 'Updating report:', id, 'isDraft:', updateData.isDraft);
+
       try {
         // Check if report exists and belongs to user
         const [existingReport] = await db
@@ -103,8 +118,11 @@ const app = new Hono()
           .limit(1);
 
         if (!existingReport) {
+          console.log('[Weekly Report Update] Report not found or access denied');
           return c.json({ error: 'Report not found or access denied' }, 404);
         }
+
+        console.log('[Weekly Report Update] Existing report found, current isDraft:', existingReport.isDraft);
 
         // Build update object
         const updates: any = {
@@ -122,6 +140,8 @@ const app = new Hono()
           updates.status = updateData.isDraft ? 'draft' : 'submitted';
         }
 
+        console.log('[Weekly Report Update] Updating with:', updates);
+
         // Update the report
         const [updatedReport] = await db
           .update(weeklyReports)
@@ -129,12 +149,14 @@ const app = new Hono()
           .where(eq(weeklyReports.id, id))
           .returning();
 
+        console.log('[Weekly Report Update] Report updated successfully, new isDraft:', updatedReport.isDraft);
+
         return c.json({ 
           data: updatedReport, 
           message: updateData.isDraft === false ? 'Weekly report submitted successfully' : 'Draft updated successfully'
         });
       } catch (error) {
-        console.error('Error updating weekly report:', error);
+        console.error('[Weekly Report Update] Error updating weekly report:', error);
         return c.json({ error: 'Failed to update weekly report' }, 500);
       }
     }

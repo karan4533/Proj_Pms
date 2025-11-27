@@ -19,9 +19,8 @@ export const useUpdateDraft = () => {
 
       return await response.json();
     },
-    onSuccess: (data) => {
-      toast.success(data.message || "Updated successfully");
-      queryClient.invalidateQueries({ queryKey: ["my-weekly-reports"] });
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["my-reports"] });
     },
     onError: (error) => {
       toast.error(error.message || "Failed to update draft");

@@ -9,6 +9,7 @@ import { usePermissionContext } from "@/components/providers/permission-provider
 
 import { useUpdateTask } from "../api/use-update-task";
 import { Task } from "../types";
+import { MemberRole } from "@/features/members/types";
 
 interface TaskDescriptionProps {
   task: Task;
@@ -21,8 +22,11 @@ export const TaskDescription = ({ task }: TaskDescriptionProps) => {
 
   const { mutate, isPending } = useUpdateTask();
 
-  // Check if user can edit this task
-  const canEdit = permissions.canEditTask(task.assigneeId);
+  // For employees: only allow editing individual tasks (no projectId) that they own
+  const isIndividualTask = task.projectId === null;
+  const canEdit = isIndividualTask
+    ? permissions.canEditTask(task.assigneeId)  // Individual task - check ownership
+    : permissions.role === MemberRole.ADMIN || permissions.role === MemberRole.PROJECT_MANAGER; // Project task - admin only
 
   const handleSave = () => {
     mutate(

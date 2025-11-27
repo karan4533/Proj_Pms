@@ -39,8 +39,15 @@ export const TaskActions = ({ id, projectId, assigneeId, children }: TaskActions
   const { mutate, isPending } = useDeleteTask();
 
   // Check permissions
-  const canEdit = permissions.canEditTask(assigneeId);
-  const canDelete = permissions.canDeleteTask(assigneeId, projectId);
+  // For employees: only allow editing/deleting individual tasks (projectId === null) that they own
+  const isIndividualTask = projectId === null;
+  const canEdit = isIndividualTask 
+    ? permissions.canEditTask(assigneeId)  // Individual task - check ownership
+    : permissions.role === MemberRole.ADMIN || permissions.role === MemberRole.PROJECT_MANAGER; // Project task - admin only
+  
+  const canDelete = isIndividualTask
+    ? permissions.canDeleteTask(assigneeId, projectId)  // Individual task - check ownership
+    : permissions.role === MemberRole.ADMIN || permissions.role === MemberRole.PROJECT_MANAGER; // Project task - admin only
 
   const onDelete = async () => {
     const ok = await confirm();
