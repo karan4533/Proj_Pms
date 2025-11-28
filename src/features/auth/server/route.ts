@@ -17,6 +17,7 @@ const updateProfileSchema = z.object({
   mobileNo: z.string().optional(),
   experience: z.number().optional(),
   skills: z.array(z.string()).optional(),
+  image: z.string().optional(), // Base64 encoded image or image URL
 });
 
 const app = new Hono()

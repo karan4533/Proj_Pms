@@ -12,11 +12,14 @@ import { PlusIcon, FolderKanban, FileText, Calendar, User } from "lucide-react";
 import Link from "next/link";
 import { format } from "date-fns";
 import { RequirementDetailsModal } from "@/features/requirements/components/requirement-details-modal";
+import { usePermissionContext } from "@/components/providers/permission-provider";
+import { MemberRole } from "@/features/members/types";
 
 export const ProjectsClient = () => {
   const { data: projects, isLoading } = useGetProjects({});
   const { data: requirements, isLoading: isLoadingRequirements } = useGetRequirements();
   const { open } = useCreateProjectModal();
+  const permissions = usePermissionContext();
   const [selectedRequirement, setSelectedRequirement] = useState<any>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
@@ -24,6 +27,9 @@ export const ProjectsClient = () => {
     setSelectedRequirement(requirement);
     setIsModalOpen(true);
   };
+
+  // Check if user is admin
+  const isAdmin = permissions.role === MemberRole.ADMIN || permissions.role === MemberRole.PROJECT_MANAGER;
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -123,7 +129,8 @@ export const ProjectsClient = () => {
         </div>
       )}
 
-      {/* Requirements Section */}
+      {/* Requirements Section - Only visible to Admins */}
+      {isAdmin && (
       <div className="mt-12">
         <div className="mb-6 flex items-center justify-between">
           <div>
@@ -220,6 +227,7 @@ export const ProjectsClient = () => {
           </Card>
         )}
       </div>
+      )}
 
       <RequirementDetailsModal
         requirement={selectedRequirement}

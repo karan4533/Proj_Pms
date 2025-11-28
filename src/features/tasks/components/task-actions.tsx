@@ -57,8 +57,8 @@ export const TaskActions = ({ id, projectId, assigneeId, children }: TaskActions
       { param: { taskId: id } },
       {
         onSuccess: () => {
-          // Navigate and force refresh to ensure fresh data
-          router.push(`/workspaces/${workspaceId}/tasks`);
+          // Go back to previous page and refresh
+          router.back();
           router.refresh();
         },
       }

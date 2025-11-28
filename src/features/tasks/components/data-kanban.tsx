@@ -311,16 +311,12 @@ export const DataKanban = ({ data, onChange }: DataKanbanProps) => {
     console.log("✅ Overview form submitted successfully!");
     console.log("📋 Pending drag update:", pendingDragUpdate);
     
-    if (pendingDragUpdate) {
+    if (pendingDragUpdate && taskForOverview) {
       console.log("🔄 Applying pending drag update to move task to IN_REVIEW");
-      // Apply the pending drag update (task moves to IN_REVIEW)
-      onChange(pendingDragUpdate.updates);
       
-      // Update local state to reflect the move to IN_REVIEW
+      // First update local state to reflect the move to IN_REVIEW
       setTasks((prevTasks) => {
         const newTasks = { ...prevTasks };
-        
-        if (!taskForOverview) return prevTasks;
         
         // Find and remove from current column
         Object.keys(newTasks).forEach((status) => {
@@ -338,10 +334,20 @@ export const DataKanban = ({ data, onChange }: DataKanbanProps) => {
         return newTasks;
       });
       
+      // Then apply the pending drag update with a small delay to ensure state is updated
+      setTimeout(() => {
+        console.log("🔄 Notifying parent component of drag update");
+        onChange(pendingDragUpdate.updates);
+      }, 50);
+      
+      // Reset states
       setPendingDragUpdate(null);
     } else {
-      console.warn("⚠️ No pending drag update found!");
+      console.warn("⚠️ No pending drag update or task found!");
     }
+    
+    // Close the form
+    setOverviewFormOpen(false);
     setTaskForOverview(null);
   }, [pendingDragUpdate, taskForOverview, onChange]);
 

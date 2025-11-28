@@ -1,26 +1,30 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Pencil, Plus, X } from "lucide-react";
+import { Pencil, Plus, X, Upload } from "lucide-react";
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { DottedSeparator } from "@/components/dotted-separator";
 
 import { useCurrent } from "../api/use-current";
 import { useUpdateProfile } from "../api/use-update-profile";
+import { compressAndConvertToBase64, validateImageFile } from "@/lib/image-utils";
+import { toast } from "sonner";
 
 const profileSchema = z.object({
   native: z.string().optional(),
   mobileNo: z.string().optional(),
   experience: z.coerce.number().optional(),
   skills: z.array(z.string()).optional(),
+  image: z.string().optional(),
 });
 
 type ProfileFormValues = z.infer<typeof profileSchema>;
@@ -36,6 +40,9 @@ export const ProfileModal = ({ open, onOpenChange }: ProfileModalProps) => {
   const [isEditing, setIsEditing] = useState(false);
   const [newSkill, setNewSkill] = useState("");
   const [tempSkills, setTempSkills] = useState<string[]>([]);
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [imageLoading, setImageLoading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const form = useForm<ProfileFormValues>({
     resolver: zodResolver(profileSchema),
@@ -44,6 +51,7 @@ export const ProfileModal = ({ open, onOpenChange }: ProfileModalProps) => {
       mobileNo: "",
       experience: 0,
       skills: [],
+      image: "",
     },
   });
 
@@ -62,8 +70,10 @@ export const ProfileModal = ({ open, onOpenChange }: ProfileModalProps) => {
         mobileNo: user.mobileNo || "",
         experience: user.experience || 0,
         skills: user.skills || [],
+        image: user.image || "",
       });
       setTempSkills(user.skills || []);
+      setPreviewImage(user.image || null);
     }
   }, [user, form]);
 
@@ -76,6 +86,39 @@ export const ProfileModal = ({ open, onOpenChange }: ProfileModalProps) => {
 
   const handleRemoveSkill = (skillToRemove: string) => {
     setTempSkills(tempSkills.filter((skill) => skill !== skillToRemove));
+  };
+
+  const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file
+    const validation = validateImageFile(file);
+    if (!validation.valid) {
+      toast.error(validation.error || "Invalid image file");
+      return;
+    }
+
+    try {
+      setImageLoading(true);
+      const base64 = await compressAndConvertToBase64(file);
+      setPreviewImage(base64);
+      form.setValue("image", base64);
+      toast.success("Image updated");
+    } catch (error) {
+      console.error("Error processing image:", error);
+      toast.error("Failed to process image");
+    } finally {
+      setImageLoading(false);
+    }
+  };
+
+  const handleRemoveImage = () => {
+    setPreviewImage(null);
+    form.setValue("image", "");
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
   };
 
   const onSubmit = (values: ProfileFormValues) => {
@@ -98,6 +141,15 @@ export const ProfileModal = ({ open, onOpenChange }: ProfileModalProps) => {
       month: "long",
       day: "numeric",
     });
+  };
+
+  const getAvatarFallback = () => {
+    return user?.name
+      ?.split(" ")
+      .map((n) => n[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2) || "US";
   };
 
   if (!user) return null;
@@ -123,6 +175,50 @@ export const ProfileModal = ({ open, onOpenChange }: ProfileModalProps) => {
 
         <div className="flex-1 overflow-y-auto pr-2">
           <div className="space-y-6">
+            {/* Profile Photo Section */}
+            <div className="flex flex-col items-center space-y-4">
+              <Avatar className="size-24 border-2 border-neutral-300">
+                <AvatarImage src={previewImage || user.image || ""} alt={user.name} />
+                <AvatarFallback className="text-lg font-semibold">
+                  {getAvatarFallback()}
+                </AvatarFallback>
+              </Avatar>
+              {isEditing && (
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={imageLoading}
+                  >
+                    <Upload className="size-4 mr-2" />
+                    Upload Photo
+                  </Button>
+                  {previewImage && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={handleRemoveImage}
+                      disabled={imageLoading}
+                    >
+                      <X className="size-4 mr-2" />
+                      Remove
+                    </Button>
+                  )}
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageChange}
+                    className="hidden"
+                    disabled={imageLoading}
+                  />
+                </div>
+              )}
+            </div>
+
             {/* Read-only fields */}
             <div className="space-y-4">
               <h3 className="text-sm font-semibold text-neutral-700">Personal Information</h3>
@@ -251,12 +347,13 @@ export const ProfileModal = ({ open, onOpenChange }: ProfileModalProps) => {
                         setIsEditing(false);
                         form.reset();
                         setTempSkills(user.skills || []);
+                        setPreviewImage(user.image || null);
                       }}
                       disabled={isPending}
                     >
                       Cancel
                     </Button>
-                    <Button type="submit" disabled={isPending}>
+                    <Button type="submit" disabled={isPending || imageLoading}>
                       Save Changes
                     </Button>
                   </div>

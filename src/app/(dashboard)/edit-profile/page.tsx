@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Loader, Search, UserCog, Pencil, Trash2 } from "lucide-react";
 import { EditProfileModal } from "@/features/profiles/components/edit-profile-modal";
 import { DeleteProfileDialog } from "@/features/profiles/components/delete-profile-dialog";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { AdminGuard } from "@/components/admin-guard";
 
@@ -16,6 +16,7 @@ interface Profile {
   id: string;
   name: string;
   email: string;
+  image?: string | null;
   mobileNo?: string | null;
   native?: string | null;
   designation?: string | null;
@@ -89,6 +90,7 @@ export default function EditProfilePage() {
                   <div className="flex items-center justify-between gap-4">
                     <div className="flex items-center gap-4 flex-1">
                       <Avatar className="size-12 border border-neutral-300">
+                        <AvatarImage src={profile.image || ""} alt={profile.name} />
                         <AvatarFallback className="bg-neutral-200 text-lg font-medium text-neutral-500">
                           {profile.name.charAt(0).toUpperCase()}
                         </AvatarFallback>
