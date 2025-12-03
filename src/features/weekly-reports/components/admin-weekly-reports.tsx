@@ -490,28 +490,22 @@ export function AdminWeeklyReports() {
                         className="cursor-pointer hover:bg-accent transition-colors"
                         onClick={() => handleSelectEmployee(employee.id)}
                       >
-                        <CardContent className="p-4">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                              <Avatar>
-                                <AvatarFallback>
+                        <CardContent className="p-2 sm:p-3 md:p-4">
+                          <div className="flex items-center gap-1.5 sm:gap-2 md:gap-4 overflow-hidden">
+                            <div className="flex items-center gap-1.5 sm:gap-2 md:gap-3 min-w-0 flex-1 overflow-hidden">
+                              <Avatar className="flex-shrink-0 h-8 w-8 sm:h-10 sm:w-10 text-xs">
+                                <AvatarFallback className="text-xs">
                                   {employee.name?.split(' ').map((n: string) => n[0]).join('').toUpperCase() || 'U'}
                                 </AvatarFallback>
                               </Avatar>
-                              <div>
-                                <div className="font-medium">{employee.name}</div>
-                                <div className="text-sm text-muted-foreground">{employee.email}</div>
+                              <div className="min-w-0 flex-1 overflow-hidden">
+                                <div className="font-medium text-xs sm:text-sm md:text-base truncate">{employee.name}</div>
+                                <div className="text-[10px] sm:text-xs md:text-sm text-muted-foreground truncate">{employee.email}</div>
                               </div>
                             </div>
-                            <div className="flex items-center gap-4">
-                              <div className="text-right">
-                                <div className="text-sm font-medium">{employeeReports.length} Reports</div>
-                                <div className="text-xs text-muted-foreground">Click to view</div>
-                              </div>
-                              <Badge variant="secondary">
-                                {employeeReports.length}
-                              </Badge>
-                            </div>
+                            <Badge variant="secondary" className="px-1.5 sm:px-2 text-xs flex-shrink-0">
+                              {employeeReports.length}
+                            </Badge>
                           </div>
                         </CardContent>
                       </Card>
@@ -581,32 +575,24 @@ export function AdminWeeklyReports() {
                       className="cursor-pointer hover:bg-accent transition-colors"
                       onClick={() => handleSelectWeek(week.weekKey)}
                     >
-                      <CardContent className="p-4">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-3">
-                            <div className="flex items-center justify-center w-12 h-12 rounded-full bg-primary/10">
-                              <Calendar className="h-6 w-6 text-primary" />
+                      <CardContent className="p-2 sm:p-3 md:p-4">
+                        <div className="flex items-center gap-1.5 sm:gap-2 md:gap-4 overflow-hidden">
+                          <div className="flex items-center gap-1.5 sm:gap-2 md:gap-3 min-w-0 flex-1 overflow-hidden">
+                            <div className="flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-full bg-primary/10 flex-shrink-0">
+                              <Calendar className="h-4 w-4 sm:h-5 sm:w-5 md:h-6 md:w-6 text-primary" />
                             </div>
-                            <div>
-                              <div className="font-medium">
-                                Week {week.weekNumber} - {selectedDepartment} Department
+                            <div className="min-w-0 flex-1 overflow-hidden">
+                              <div className="font-medium text-xs sm:text-sm md:text-base truncate">
+                                W{week.weekNumber} - {selectedDepartment.slice(0, 3)}
                               </div>
-                              <div className="text-sm text-muted-foreground">
-                                {format(week.fromDate, 'MMM dd')} - {format(week.toDate, 'MMM dd, yyyy')}
+                              <div className="text-[10px] sm:text-xs md:text-sm text-muted-foreground truncate">
+                                {format(week.fromDate, 'MMM dd')} - {format(week.toDate, 'MMM dd')}
                               </div>
                             </div>
                           </div>
-                          <div className="flex items-center gap-4">
-                            <div className="text-right">
-                              <div className="text-sm font-medium">{week.reports.length} Reports</div>
-                              <div className="text-xs text-muted-foreground">
-                                {Array.from(new Set(week.reports.map((r: any) => r.userId))).length} Employees
-                              </div>
-                            </div>
-                            <Badge variant="secondary">
-                              {week.reports.length}
-                            </Badge>
-                          </div>
+                          <Badge variant="secondary" className="px-1.5 sm:px-2 text-xs flex-shrink-0">
+                            {week.reports.length}
+                          </Badge>
                         </div>
                       </CardContent>
                     </Card>
@@ -627,31 +613,33 @@ export function AdminWeeklyReports() {
           {/* Step 3: Reports Table - Per Employee */}
           {selectedDepartment && selectedEmployee && (
             <div className="space-y-4">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-2">
-                  <Button variant="ghost" size="sm" onClick={handleBackToEmployees}>
-                    <ArrowLeft className="h-4 w-4 mr-2" />
-                    Back to Employees
+              <div className="flex flex-col gap-2 mb-4">
+                <div className="flex items-center gap-1.5 sm:gap-2 overflow-hidden">
+                  <Button variant="ghost" size="sm" onClick={handleBackToEmployees} className="flex-shrink-0 px-2 sm:px-3">
+                    <ArrowLeft className="h-4 w-4" />
+                    <span className="hidden xs:inline ml-2">Back</span>
                   </Button>
-                  <div className="flex items-center gap-2 ml-2">
-                    <Badge variant="outline">{selectedDepartment}</Badge>
-                    <span className="text-muted-foreground">/</span>
-                    <Badge variant="secondary">
+                  <div className="flex items-center gap-1 sm:gap-2 min-w-0 flex-1 overflow-hidden">
+                    <Badge variant="outline" className="flex-shrink-0 text-xs px-1.5 sm:px-2">{selectedDepartment.slice(0, 2)}</Badge>
+                    <span className="text-muted-foreground flex-shrink-0 text-xs">/</span>
+                    <Badge variant="secondary" className="truncate text-xs px-1.5 sm:px-2 max-w-[80px] sm:max-w-[150px] md:max-w-[200px]">
                       {employees.find((e) => e.id === selectedEmployee)?.name}
                     </Badge>
                   </div>
                 </div>
                 {filteredReports && filteredReports.length > 0 && (
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 flex-shrink-0">
                     {selectedReportIds.size > 0 && (
-                      <Button variant="primary" size="sm" onClick={handleDownloadSelected}>
-                        <Download className="h-4 w-4 mr-2" />
-                        Download Selected ({selectedReportIds.size})
+                      <Button variant="primary" size="sm" onClick={handleDownloadSelected} className="text-xs px-2 sm:px-3 w-full sm:w-auto flex items-center justify-center gap-1">
+                        <Download className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
+                        <span className="hidden sm:inline">Download Selected </span>
+                        <span>({selectedReportIds.size})</span>
                       </Button>
                     )}
-                    <Button variant="outline" size="sm" onClick={handleDownloadAllCSV}>
-                      <Download className="h-4 w-4 mr-2" />
-                      Export Summary (CSV)
+                    <Button variant="outline" size="sm" onClick={handleDownloadAllCSV} className="text-xs px-2 sm:px-3 w-full sm:w-auto flex items-center justify-center gap-1">
+                      <Download className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
+                      <span className="hidden sm:inline">Export Summary (CSV)</span>
+                      <span className="sm:hidden">Export CSV</span>
                     </Button>
                   </div>
                 )}
@@ -744,20 +732,21 @@ export function AdminWeeklyReports() {
           {/* Step 3 Alternative: Reports Table - By Week (All Employees) */}
           {selectedDepartment && selectedWeek && viewMode === "weeks" && (
             <div className="space-y-4">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-2">
-                  <Button variant="ghost" size="sm" onClick={handleBackToSelection}>
+              <div className="flex flex-col gap-3 mb-4">
+                <div className="flex items-center gap-2 overflow-hidden flex-wrap">
+                  <Button variant="ghost" size="sm" onClick={handleBackToSelection} className="flex-shrink-0">
                     <ArrowLeft className="h-4 w-4 mr-2" />
-                    Back to Weeks
+                    <span className="hidden sm:inline">Back to Weeks</span>
+                    <span className="sm:hidden">Back</span>
                   </Button>
-                  <div className="flex items-center gap-2 ml-2">
-                    <Badge variant="outline">{selectedDepartment}</Badge>
-                    <span className="text-muted-foreground">/</span>
-                    <Badge variant="secondary">
+                  <div className="flex items-center gap-1 sm:gap-2 min-w-0 flex-1 overflow-hidden">
+                    <Badge variant="outline" className="flex-shrink-0 text-xs">{selectedDepartment.slice(0, 3)}</Badge>
+                    <span className="text-muted-foreground flex-shrink-0 text-xs">/</span>
+                    <Badge variant="secondary" className="truncate text-xs max-w-[150px] sm:max-w-none">
                       {selectedWeek && (() => {
                         const weekGroup = weeklyGroups.find(w => w.weekKey === selectedWeek);
                         if (weekGroup) {
-                          return `Week ${weekGroup.weekNumber}: ${format(weekGroup.fromDate, 'MMM dd')} - ${format(weekGroup.toDate, 'MMM dd, yyyy')}`;
+                          return `W${weekGroup.weekNumber}: ${format(weekGroup.fromDate, 'MMM dd')} - ${format(weekGroup.toDate, 'MMM dd')}`;
                         }
                         return selectedWeek;
                       })()}
@@ -765,16 +754,18 @@ export function AdminWeeklyReports() {
                   </div>
                 </div>
                 {filteredReports && filteredReports.length > 0 && (
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                     {selectedReportIds.size > 0 && (
-                      <Button variant="primary" size="sm" onClick={handleDownloadSelected}>
-                        <Download className="h-4 w-4 mr-2" />
-                        Download Selected ({selectedReportIds.size})
+                      <Button variant="primary" size="sm" onClick={handleDownloadSelected} className="w-full sm:w-auto text-xs whitespace-nowrap">
+                        <Download className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+                          <span className="hidden sm:inline">Download Selected ({selectedReportIds.size})</span>
+                          <span className="sm:hidden"> Download Selected  ({selectedReportIds.size})</span>
                       </Button>
                     )}
-                    <Button variant="outline" size="sm" onClick={handleDownloadAllCSV}>
-                      <Download className="h-4 w-4 mr-2" />
-                      Export Summary (CSV)
+                    <Button variant="outline" size="sm" onClick={handleDownloadAllCSV} className="w-full sm:w-auto text-xs whitespace-nowrap">
+                      <Download className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+                      <span className="hidden sm:inline">Export Summary (CSV)</span>
+                      <span className="sm:hidden">Export CSV</span>
                     </Button>
                   </div>
                 )}

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Clock, Play, Square, Download, Loader2, Plus, X } from "lucide-react";
+import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
@@ -181,8 +182,8 @@ export const AttendanceTracker = ({ workspaceId }: AttendanceTrackerProps = {}) 
     const report = `
 SHIFT REPORT
 ============
-Date: ${startTime.toLocaleDateString()}
-Start Time: ${startTime.toLocaleTimeString()}
+Date: ${format(startTime, 'MMM dd, yyyy')}
+Start Time: ${format(startTime, 'h:mm a')}
 Duration: ${formatTime(elapsedTime)}
 
 DAILY TASKS:
@@ -228,49 +229,49 @@ ${tasksList}
       )}
 
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Clock className="size-5" />
-            Attendance Tracker
+        <CardHeader className="px-2 sm:px-4 md:px-6 py-3 sm:py-4">
+          <CardTitle className="flex items-center gap-1.5 sm:gap-2 text-sm sm:text-lg md:text-xl">
+            <Clock className="h-4 w-4 sm:h-5 sm:w-5" />
+            <span className="truncate">Attendance</span>
           </CardTitle>
-          <CardDescription>
-            Track your shift hours and daily tasks (Shifts auto-end at midnight)
+          <CardDescription className="text-[10px] sm:text-xs md:text-sm truncate">
+            Track shift hours and tasks
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-6">
+        <CardContent className="space-y-4 sm:space-y-6 px-2 sm:px-4 md:px-6 pb-4 sm:pb-6">
           {/* Timer Display */}
           {activeShift && (
-            <div className="flex items-center justify-center">
-              <div className="text-center p-8 rounded-lg bg-muted/50">
-                <p className="text-sm text-muted-foreground mb-2">Shift Duration</p>
-                <p className="text-5xl font-mono font-bold text-primary">
+            <div className="flex items-center justify-center px-1 sm:px-2">
+              <div className="text-center p-2 sm:p-4 md:p-8 rounded-lg bg-muted/50 w-full max-w-md">
+                <p className="text-[10px] sm:text-xs md:text-sm text-muted-foreground mb-1 sm:mb-2">Shift Duration</p>
+                <p className="text-xl sm:text-3xl md:text-4xl lg:text-5xl font-mono font-bold text-primary">
                   {formatTime(elapsedTime)}
                 </p>
-                <p className="text-sm text-muted-foreground mt-2">
-                  Started at {new Date(activeShift.shiftStartTime).toLocaleTimeString()}
+                <p className="text-[10px] sm:text-xs md:text-sm text-muted-foreground mt-1 sm:mt-2 truncate">
+                  Started at {format(new Date(activeShift.shiftStartTime), 'h:mm a')}
                 </p>
               </div>
             </div>
           )}
 
           {/* Action Buttons */}
-          <div className="flex items-center justify-center gap-4">
+          <div className="flex flex-col gap-2 w-full max-w-md mx-auto">
             {!activeShift ? (
               <Button
                 onClick={handleStartShift}
                 disabled={startShift.isPending}
                 size="lg"
-                className="gap-2"
+                className="gap-1.5 sm:gap-2 w-full flex items-center justify-center text-xs sm:text-sm md:text-base"
               >
                 {startShift.isPending ? (
                   <>
-                    <Loader2 className="size-4 animate-spin" />
-                    Starting...
+                    <Loader2 className="h-3 w-3 sm:h-4 sm:w-4 animate-spin" />
+                    <span>Starting...</span>
                   </>
                 ) : (
                   <>
-                    <Play className="size-4" />
-                    Start Shift
+                    <Play className="h-3 w-3 sm:h-4 sm:w-4" />
+                    <span>Start Shift</span>
                   </>
                 )}
               </Button>
@@ -281,20 +282,21 @@ ${tasksList}
                   disabled={endShift.isPending}
                   size="lg"
                   variant="destructive"
-                  className="gap-2"
+                  className="gap-1.5 sm:gap-2 w-full flex items-center justify-center text-xs sm:text-sm md:text-base"
                 >
-                  <Square className="size-4" />
-                  End Shift
+                  <Square className="h-3 w-3 sm:h-4 sm:w-4" />
+                  <span>End Shift</span>
                 </Button>
                 <Button
                   onClick={handleDownloadReport}
                   size="lg"
                   variant="outline"
-                  className="gap-2"
+                  className="gap-1.5 sm:gap-2 w-full flex items-center justify-center whitespace-nowrap text-xs sm:text-sm md:text-base"
                   disabled={dailyTasks.filter((t) => t.trim()).length === 0}
                 >
-                  <Download className="size-4" />
-                  Download Report
+                  <Download className="h-3 w-3 sm:h-4 sm:w-4" />
+                  <span className="hidden xs:inline">Download</span>
+                  <span className="xs:hidden">Download All</span>
                 </Button>
               </>
             )}
@@ -435,21 +437,13 @@ ${tasksList}
                   <div>
                     <p className="text-muted-foreground">Start Time</p>
                     <p className="font-medium">
-                      {new Date(activeShift.shiftStartTime).toLocaleTimeString("en-US", {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                        hour12: true
-                      })}
+                      {format(new Date(activeShift.shiftStartTime), 'h:mm a')}
                     </p>
                   </div>
                   <div>
                     <p className="text-muted-foreground">End Time</p>
                     <p className="font-medium">
-                      {new Date().toLocaleTimeString("en-US", {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                        hour12: true
-                      })}
+                      {format(new Date(), 'h:mm a')}
                     </p>
                   </div>
                 </div>

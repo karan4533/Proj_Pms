@@ -95,20 +95,20 @@ export const ReportClient = () => {
   };
 
   return (
-    <div className="h-full flex flex-col p-6">
-      <div className="mb-6 flex items-center justify-between">
+    <div className="h-full flex flex-col p-2 sm:p-4 md:p-6">
+      <div className="mb-4 sm:mb-6 flex flex-col gap-2 sm:gap-4">
         <div>
-          <h1 className="text-3xl font-bold">Reports</h1>
-          <p className="text-muted-foreground">Monitor all of your projects and tasks here.</p>
+          <h1 className="text-lg sm:text-2xl md:text-3xl font-bold">Reports</h1>
+          <p className="text-xs sm:text-sm md:text-base text-muted-foreground">Monitor all of your projects and tasks here.</p>
         </div>
-        <div className="flex gap-2">
-          <Button onClick={exportToPDF} variant="outline">
-            <Download className="mr-2 h-4 w-4" />
-            Export PDF
+        <div className="flex flex-col gap-2 w-full">
+          <Button onClick={exportToPDF} variant="outline" className="w-full flex items-center justify-center gap-1.5 sm:gap-2 text-xs sm:text-sm">
+            <Download className="h-3 w-3 sm:h-4 sm:w-4" />
+            <span>Export PDF</span>
           </Button>
-          <Button onClick={exportToExcel}>
-            <Download className="mr-2 h-4 w-4" />
-            Export Excel
+          <Button onClick={exportToExcel} className="w-full flex items-center justify-center gap-1.5 sm:gap-2 text-xs sm:text-sm">
+            <Download className="h-3 w-3 sm:h-4 sm:w-4" />
+            <span>Export Excel</span>
           </Button>
         </div>
       </div>

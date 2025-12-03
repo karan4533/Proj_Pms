@@ -174,15 +174,21 @@ export function TaskOverviewsPanel() {
         </CardHeader>
         <CardContent>
           <Tabs defaultValue="pending" className="w-full">
-            <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="pending">
-                Pending ({pendingOverviews.length})
+            <TabsList className="grid w-full grid-cols-3 h-auto">
+              <TabsTrigger value="pending" className="text-xs sm:text-sm px-2 py-2 whitespace-nowrap overflow-hidden">
+                <span className="hidden sm:inline">Pending</span>
+                <span className="sm:hidden">Pend.</span>
+                <span className="ml-1">({pendingOverviews.length})</span>
               </TabsTrigger>
-              <TabsTrigger value="approved">
-                Approved ({approvedOverviews.length})
+              <TabsTrigger value="approved" className="text-xs sm:text-sm px-2 py-2 whitespace-nowrap overflow-hidden">
+                <span className="hidden sm:inline">Approved</span>
+                <span className="sm:hidden">Appr.</span>
+                <span className="ml-1">({approvedOverviews.length})</span>
               </TabsTrigger>
-              <TabsTrigger value="rework">
-                Rework ({reworkOverviews.length})
+              <TabsTrigger value="rework" className="text-xs sm:text-sm px-2 py-2 whitespace-nowrap overflow-hidden">
+                <span className="hidden sm:inline">Rework</span>
+                <span className="sm:hidden">Rwrk.</span>
+                <span className="ml-1">({reworkOverviews.length})</span>
               </TabsTrigger>
             </TabsList>
 

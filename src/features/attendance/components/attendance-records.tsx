@@ -816,25 +816,27 @@ export const AttendanceRecords = ({ workspaceId }: AttendanceRecordsProps = {}) 
               )}
             </div>
             
-            <div className="flex items-center gap-2">
+            <div className="flex flex-col gap-2 w-full">
               <Button 
                 onClick={() => downloadCSV(false)} 
                 disabled={!records || records.length === 0} 
-                className="gap-2"
+                className="gap-1.5 sm:gap-2 w-full flex items-center justify-center whitespace-nowrap text-xs sm:text-sm"
                 variant="outline"
               >
-                <Download className="size-4" />
-                Download All
+                <Download className="h-3 w-3 sm:h-4 sm:w-4" />
+                <span className="hidden xs:inline">Download All</span>
+                <span className="xs:hidden">Download All</span>
               </Button>
               
               <Button 
                 onClick={() => setReportModalOpen(true)} 
                 disabled={!filteredRecords || filteredRecords.length === 0}
-                className="gap-2"
+                className="gap-1.5 sm:gap-2 w-full flex items-center justify-center whitespace-nowrap text-xs sm:text-sm"
                 variant="primary"
               >
-                <Eye className="size-4" />
-                View Report ({filteredRecords.length})
+                <Eye className="h-3 w-3 sm:h-4 sm:w-4" />
+                <span className="hidden xs:inline">View Report ({filteredRecords.length})</span>
+                <span className="xs:hidden">View ({filteredRecords.length})</span>
               </Button>
             </div>
           </div>

@@ -63,20 +63,23 @@ const TasksPage = async ({ searchParams }: { searchParams: { tab?: string } }) =
 
       {/* Tabs for Individual vs Bulk Import */}
       <Tabs defaultValue={defaultTab} className="w-full">
-        <TabsList className={`grid w-full max-w-2xl ${isAdmin ? 'grid-cols-3' : 'grid-cols-1'}`}>
-          <TabsTrigger value="individual" className="flex items-center gap-2">
-            <ListTodo className="h-4 w-4" />
-            Individual Tasks
+        <TabsList className={`grid w-full max-w-2xl h-auto ${isAdmin ? 'grid-cols-3' : 'grid-cols-1'}`}>
+          <TabsTrigger value="individual" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm px-2 sm:px-4 py-2 whitespace-nowrap">
+            <ListTodo className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
+            <span className="hidden xs:inline sm:inline">Individual Tasks</span>
+            <span className="inline xs:hidden sm:hidden">Individual</span>
           </TabsTrigger>
           {isAdmin && (
             <>
-              <TabsTrigger value="bulk" className="flex items-center gap-2">
-                <FileSpreadsheet className="h-4 w-4" />
-                Bulk Import
+              <TabsTrigger value="bulk" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm px-2 sm:px-4 py-2 whitespace-nowrap">
+                <FileSpreadsheet className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
+                <span className="hidden sm:inline">Bulk Import</span>
+                <span className="sm:hidden">Bulk</span>
               </TabsTrigger>
-              <TabsTrigger value="overviews" className="flex items-center gap-2">
-                <ClipboardCheck className="h-4 w-4" />
-                Task Reviews
+              <TabsTrigger value="overviews" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm px-2 sm:px-4 py-2 whitespace-nowrap">
+                <ClipboardCheck className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
+                <span className="hidden sm:inline">Task Reviews</span>
+                <span className="sm:hidden">Reviews</span>
               </TabsTrigger>
             </>
           )}

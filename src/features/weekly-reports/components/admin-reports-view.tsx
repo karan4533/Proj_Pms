@@ -23,7 +23,29 @@ import {
 } from '@/components/ui/table';
 import { useGetWeeklyReports } from '../api/use-get-weekly-reports';
 import { Skeleton } from '@/components/ui/skeleton';
-import type { WeeklyReport } from '../types';
+
+// Extended type for admin view with joined user data
+// Note: API returns dates as strings, not Date objects
+type AdminWeeklyReport = {
+  id: string;
+  userId: string;
+  fromDate: string;
+  toDate: string;
+  department: string;
+  dailyDescriptions: Record<string, string>;
+  uploadedFiles: Array<{
+    date: string;
+    fileName: string;
+    fileUrl: string;
+    fileSize: number;
+    uploadedAt: string;
+  }>;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+  employeeName: string;
+  employeeEmail: string;
+};
 
 const departments = [
   'All Departments',
@@ -44,7 +66,7 @@ export function AdminReportsView() {
     department: selectedDepartment === 'All Departments' ? undefined : selectedDepartment,
   });
 
-  const downloadReport = async (report: WeeklyReport) => {
+  const downloadReport = async (report: AdminWeeklyReport) => {
     // Generate a simple text/markdown format report
     let content = `# Weekly Report\n\n`;
     content += `**Employee:** ${report.employeeName}\n`;
@@ -53,14 +75,17 @@ export function AdminReportsView() {
     content += `**Submitted:** ${format(parseISO(report.createdAt), 'PPP')}\n\n`;
     content += `---\n\n`;
 
-    report.dailyDescriptions.forEach((day) => {
-      content += `## ${format(parseISO(day.date), 'EEEE, MMMM d, yyyy')}\n\n`;
-      content += `${day.description || 'No description provided'}\n\n`;
+    // dailyDescriptions is a Record<string, string> where key is date and value is description
+    Object.entries(report.dailyDescriptions).forEach(([date, description]) => {
+      content += `## ${format(parseISO(date), 'EEEE, MMMM d, yyyy')}\n\n`;
+      content += `${description || 'No description provided'}\n\n`;
       
-      if (day.fileUrls && day.fileUrls.length > 0) {
+      // Find files for this date
+      const filesForDate = report.uploadedFiles.filter(file => file.date === date);
+      if (filesForDate.length > 0) {
         content += `**Attachments:**\n`;
-        day.fileUrls.forEach((url) => {
-          content += `- ${url}\n`;
+        filesForDate.forEach((file) => {
+          content += `- ${file.fileName} (${file.fileUrl})\n`;
         });
         content += `\n`;
       }
@@ -138,7 +163,7 @@ export function AdminReportsView() {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => downloadReport(report)}
+                          onClick={() => downloadReport(report as AdminWeeklyReport)}
                           className="gap-2"
                         >
                           <Download className="h-4 w-4" />
