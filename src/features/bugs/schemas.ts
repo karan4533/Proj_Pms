@@ -14,6 +14,8 @@ export const updateBugSchema = z.object({
   status: z.string().optional(),
   priority: z.string().optional(),
   assignedTo: z.string().optional(),
+  fileUrl: z.string().nullable().optional(),
+  outputFileUrl: z.string().nullable().optional(),
 });
 
 export const createBugTypeSchema = z.object({

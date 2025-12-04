@@ -1,20 +1,67 @@
 "use client";
 
-import { useState } from "react";
-import { Bug, Plus } from "lucide-react";
+import { useState, useMemo, useEffect } from "react";
+import { Bug, Plus, History } from "lucide-react";
+import { useSearchParams, useRouter } from "next/navigation";
 
 import { useGetAssignedBugs, useGetReportedBugs } from "../api/use-get-bugs";
+import { useCurrent } from "@/features/auth/api/use-current";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DottedSeparator } from "@/components/dotted-separator";
 import { BugCard } from "./bug-card";
 import { CreateBugModal } from "./create-bug-modal";
+import { BugStatus } from "../types";
+import { BugDetailModal } from "./bug-detail-modal";
 
 export const BugList = () => {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const bugIdFromUrl = searchParams.get("bugId");
+  const { data: currentUser } = useCurrent();
+  
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [selectedBug, setSelectedBug] = useState<any>(null);
+  
   const { data: assignedBugs = [], isLoading: loadingAssigned } = useGetAssignedBugs();
   const { data: reportedBugs = [], isLoading: loadingReported } = useGetReportedBugs();
+
+  // Auto-open bug from URL parameter
+  useEffect(() => {
+    if (bugIdFromUrl && !loadingAssigned && !loadingReported) {
+      const allBugs = [...assignedBugs, ...reportedBugs];
+      const bug = allBugs.find(b => b.bugId === bugIdFromUrl);
+      if (bug) {
+        setSelectedBug(bug);
+        // Clear the URL parameter
+        router.replace("/bugs", { scroll: false });
+      }
+    }
+  }, [bugIdFromUrl, assignedBugs, reportedBugs, loadingAssigned, loadingReported, router]);
+
+  // Filter active (non-closed) bugs
+  const activeAssignedBugs = useMemo(() => 
+    assignedBugs.filter(bug => bug.status !== BugStatus.CLOSED),
+    [assignedBugs]
+  );
+
+  const activeReportedBugs = useMemo(() => 
+    reportedBugs.filter(bug => bug.status !== BugStatus.CLOSED),
+    [reportedBugs]
+  );
+
+  // Filter closed bugs for history
+  const closedBugs = useMemo(() => {
+    const allBugs = [...assignedBugs, ...reportedBugs];
+    // Remove duplicates and filter closed
+    const uniqueBugs = Array.from(
+      new Map(allBugs.map(bug => [bug.id, bug])).values()
+    );
+    return uniqueBugs
+      .filter(bug => bug.status === BugStatus.CLOSED)
+      .sort((a, b) => new Date(b.resolvedAt || b.updatedAt).getTime() - new Date(a.resolvedAt || a.updatedAt).getTime());
+  }, [assignedBugs, reportedBugs]);
 
   return (
     <>
@@ -36,10 +83,10 @@ export const BugList = () => {
           <Tabs defaultValue="assigned" className="w-full">
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="assigned">
-                Assigned to Me ({assignedBugs.length})
+                Assigned to Me ({activeAssignedBugs.length})
               </TabsTrigger>
               <TabsTrigger value="reported">
-                Reported by Me ({reportedBugs.length})
+                Reported by Me ({activeReportedBugs.length})
               </TabsTrigger>
             </TabsList>
             
@@ -48,16 +95,16 @@ export const BugList = () => {
                 <div className="flex items-center justify-center p-8">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
                 </div>
-              ) : assignedBugs.length === 0 ? (
+              ) : activeAssignedBugs.length === 0 ? (
                 <div className="flex flex-col items-center justify-center p-8 text-center">
                   <Bug className="h-12 w-12 text-muted-foreground mb-3 opacity-50" />
                   <p className="text-sm text-muted-foreground">
-                    No bugs assigned to you yet
+                    No active bugs assigned to you
                   </p>
                 </div>
               ) : (
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                  {assignedBugs.map((bug) => (
+                  {activeAssignedBugs.map((bug) => (
                     <BugCard key={bug.id} bug={bug} showReportedBy />
                   ))}
                 </div>
@@ -69,11 +116,11 @@ export const BugList = () => {
                 <div className="flex items-center justify-center p-8">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
                 </div>
-              ) : reportedBugs.length === 0 ? (
+              ) : activeReportedBugs.length === 0 ? (
                 <div className="flex flex-col items-center justify-center p-8 text-center">
                   <Bug className="h-12 w-12 text-muted-foreground mb-3 opacity-50" />
                   <p className="text-sm text-muted-foreground">
-                    You haven't reported any bugs yet
+                    You haven't reported any active bugs yet
                   </p>
                   <Button
                     variant="outline"
@@ -86,7 +133,7 @@ export const BugList = () => {
                 </div>
               ) : (
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                  {reportedBugs.map((bug) => (
+                  {activeReportedBugs.map((bug) => (
                     <BugCard key={bug.id} bug={bug} showAssignedTo />
                   ))}
                 </div>
@@ -96,10 +143,47 @@ export const BugList = () => {
         </CardContent>
       </Card>
 
+      {/* History Section for Closed Bugs */}
+      {closedBugs.length > 0 && (
+        <Card className="w-full border-none shadow-none mt-6">
+          <CardHeader className="p-7">
+            <CardTitle className="text-xl font-bold flex items-center gap-2">
+              <History className="h-5 w-5" />
+              Closed Bugs History ({closedBugs.length})
+            </CardTitle>
+          </CardHeader>
+          <div className="px-7">
+            <DottedSeparator />
+          </div>
+          <CardContent className="p-7">
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {closedBugs.map((bug) => (
+                <BugCard 
+                  key={bug.id} 
+                  bug={bug} 
+                  showAssignedTo 
+                  showReportedBy 
+                />
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       <CreateBugModal
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
       />
+
+      {selectedBug && currentUser && (
+        <BugDetailModal
+          bug={selectedBug}
+          isOpen={!!selectedBug}
+          onClose={() => setSelectedBug(null)}
+          isAssignee={selectedBug.assignedTo === currentUser.id}
+          isReporter={selectedBug.reportedBy === currentUser.id}
+        />
+      )}
     </>
   );
 };

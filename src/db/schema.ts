@@ -1,4 +1,4 @@
-import { pgTable, uuid, text, integer, timestamp, jsonb, index, uniqueIndex } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, text, integer, timestamp, jsonb, index, uniqueIndex, boolean } from 'drizzle-orm/pg-core';
 
 // Users table
 export const users = pgTable('users', {
@@ -340,9 +340,9 @@ export const notifications = pgTable('notifications', {
   
   // Status
   isRead: text('is_read').notNull().default('false'), // 'true' or 'false' as text
-  readAt: timestamp('read_at'),
+  readAt: timestamp('read_at', { mode: 'date', withTimezone: true }),
   
-  createdAt: timestamp('created_at').defaultNow().notNull(),
+  createdAt: timestamp('created_at', { mode: 'date', withTimezone: true }).defaultNow().notNull(),
 }, (table) => ({
   userIdx: index('notifications_user_idx').on(table.userId),
   taskIdx: index('notifications_task_idx').on(table.taskId),
@@ -407,7 +407,8 @@ export const bugs = pgTable('bugs', {
   assignedTo: uuid('assigned_to').references(() => users.id, { onDelete: 'set null' }), // Bug fixer
   bugType: text('bug_type').notNull().default('Development'), // UI/UX, Development, Testing, or custom
   bugDescription: text('bug_description').notNull(),
-  fileUrl: text('file_url'), // Optional file attachment
+  fileUrl: text('file_url'), // Optional file attachment from reporter
+  outputFileUrl: text('output_file_url'), // Output file from assignee when resolving
   
   // Status tracking
   status: text('status').notNull().default('Open'), // Open, In Progress, Resolved, Closed
@@ -421,10 +422,10 @@ export const bugs = pgTable('bugs', {
   workspaceId: uuid('workspace_id').references(() => workspaces.id, { onDelete: 'cascade' }),
   
   // Resolution tracking
-  resolvedAt: timestamp('resolved_at'),
+  resolvedAt: timestamp('resolved_at', { mode: 'date', withTimezone: true }),
   
-  createdAt: timestamp('created_at').defaultNow().notNull(),
-  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  createdAt: timestamp('created_at', { mode: 'date', withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { mode: 'date', withTimezone: true }).defaultNow().notNull(),
 }, (table) => ({
   bugIdIdx: index('bugs_bug_id_idx').on(table.bugId),
   assignedToIdx: index('bugs_assigned_to_idx').on(table.assignedTo),
@@ -433,4 +434,21 @@ export const bugs = pgTable('bugs', {
   reportedByIdx: index('bugs_reported_by_idx').on(table.reportedBy),
   workspaceIdx: index('bugs_workspace_idx').on(table.workspaceId),
   createdAtIdx: index('bugs_created_at_idx').on(table.createdAt),
+}));
+
+// Bug comments for conversation history
+export const bugComments = pgTable('bug_comments', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  bugId: uuid('bug_id').notNull().references(() => bugs.id, { onDelete: 'cascade' }),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  userName: text('user_name').notNull(), // Denormalized for display
+  comment: text('comment').notNull(),
+  fileUrl: text('file_url'), // Optional file attachment in comment
+  isSystemComment: boolean('is_system_comment').notNull().default(false), // For auto-generated comments (e.g., "Bug reopened")
+  
+  createdAt: timestamp('created_at', { mode: 'date', withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  bugIdIdx: index('bug_comments_bug_id_idx').on(table.bugId),
+  userIdIdx: index('bug_comments_user_id_idx').on(table.userId),
+  createdAtIdx: index('bug_comments_created_at_idx').on(table.createdAt),
 }));

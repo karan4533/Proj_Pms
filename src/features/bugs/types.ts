@@ -20,6 +20,7 @@ export type Bug = {
   bugType: string;
   bugDescription: string;
   fileUrl: string | null;
+  outputFileUrl: string | null;
   status: string;
   priority: string | null;
   reportedBy: string;

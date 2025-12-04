@@ -4,7 +4,7 @@ import { z } from "zod";
 import { eq, and, desc, sql } from "drizzle-orm";
 
 import { db } from "@/db";
-import { bugs, customBugTypes, users, notifications } from "@/db/schema";
+import { bugs, customBugTypes, users, notifications, bugComments } from "@/db/schema";
 import { createBugSchema, updateBugSchema, createBugTypeSchema } from "../schemas";
 import { sessionMiddleware } from "@/lib/session-middleware";
 
@@ -162,8 +162,16 @@ const app = new Hono()
 
     if (updates.status) {
       updateData.status = updates.status;
-      if (updates.status === "Resolved" || updates.status === "Closed") {
+      
+      // Set resolvedAt only when changing TO Resolved/Closed status
+      if ((updates.status === "Resolved" || updates.status === "Closed") && 
+          (existingBug.status !== "Resolved" && existingBug.status !== "Closed")) {
         updateData.resolvedAt = new Date();
+      }
+      
+      // Clear resolvedAt if changing back to Open or In Progress
+      if ((updates.status === "Open" || updates.status === "In Progress") && existingBug.resolvedAt) {
+        updateData.resolvedAt = null;
       }
     }
 
@@ -173,6 +181,21 @@ const app = new Hono()
 
     if (updates.assignedTo) {
       updateData.assignedTo = updates.assignedTo;
+    }
+
+    if (updates.fileUrl !== undefined) {
+      // Only allow reporter to update file
+      if (existingBug.reportedBy === user.id) {
+        // Empty string means remove file
+        updateData.fileUrl = updates.fileUrl === '' ? null : updates.fileUrl;
+      }
+    }
+
+    if (updates.outputFileUrl !== undefined) {
+      // Only allow assignee to update output file
+      if (existingBug.assignedTo === user.id) {
+        updateData.outputFileUrl = updates.outputFileUrl === '' ? null : updates.outputFileUrl;
+      }
     }
 
     const [updatedBug] = await db
@@ -227,6 +250,93 @@ const app = new Hono()
       .returning();
 
     return c.json({ data: newBugType });
-  });
+  })
+  // Get comments for a specific bug
+  .get("/:bugId/comments", sessionMiddleware, async (c) => {
+    const user = c.get("user");
+    const { bugId } = c.req.param();
+
+    // First, check if user has access to this bug (assignee or reporter)
+    const [bug] = await db
+      .select()
+      .from(bugs)
+      .where(eq(bugs.bugId, bugId))
+      .limit(1);
+
+    if (!bug) {
+      return c.json({ error: "Bug not found" }, 404);
+    }
+
+    if (bug.assignedTo !== user.id && bug.reportedBy !== user.id) {
+      return c.json({ error: "Unauthorized access to bug comments" }, 403);
+    }
+
+    // Get all comments for this bug
+    const comments = await db
+      .select()
+      .from(bugComments)
+      .where(eq(bugComments.bugId, bug.id))
+      .orderBy(bugComments.createdAt);
+
+    return c.json({ data: comments });
+  })
+  // Create a comment on a bug
+  .post(
+    "/:bugId/comments",
+    sessionMiddleware,
+    zValidator("json", z.object({
+      comment: z.string().min(1, "Comment cannot be empty"),
+      fileUrl: z.string().optional(),
+    })),
+    async (c) => {
+      const user = c.get("user");
+      const { bugId } = c.req.param();
+      const { comment, fileUrl } = c.req.valid("json");
+
+      // Check if user has access to this bug
+      const [bug] = await db
+        .select()
+        .from(bugs)
+        .where(eq(bugs.bugId, bugId))
+        .limit(1);
+
+      if (!bug) {
+        return c.json({ error: "Bug not found" }, 404);
+      }
+
+      if (bug.assignedTo !== user.id && bug.reportedBy !== user.id) {
+        return c.json({ error: "Unauthorized: Only assignee or reporter can comment" }, 403);
+      }
+
+      // Create the comment
+      const [newComment] = await db
+        .insert(bugComments)
+        .values({
+          bugId: bug.id,
+          userId: user.id,
+          userName: user.name,
+          comment,
+          fileUrl: fileUrl || null,
+          isSystemComment: false,
+        })
+        .returning();
+
+      // Create notification for the other party
+      const notifyUserId = bug.assignedTo === user.id ? bug.reportedBy : bug.assignedTo;
+      
+      if (notifyUserId) {
+        await db.insert(notifications).values({
+          userId: notifyUserId,
+          type: "BUG_COMMENT",
+          title: `New comment on ${bug.bugId}`,
+          message: `${user.name} commented: ${comment.substring(0, 100)}${comment.length > 100 ? '...' : ''}`,
+          actionBy: user.id,
+          actionByName: user.name,
+        });
+      }
+
+      return c.json({ data: newComment });
+    }
+  );
 
 export default app;

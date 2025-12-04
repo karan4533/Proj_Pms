@@ -72,9 +72,14 @@ export const NotificationButton = () => {
         router.push(`/tasks?taskId=${notification.taskId}`);
         setOpen(false);
       }
-    } else if (notification.type === "BUG_ASSIGNED" || notification.type === "BUG_STATUS_UPDATED") {
-      // Navigate to bug tracker page
-      router.push("/bugs");
+    } else if (notification.type === "BUG_ASSIGNED" || notification.type === "BUG_STATUS_UPDATED" || notification.type === "BUG_COMMENT") {
+      // Navigate to bug tracker page with bug ID in URL
+      const bugIdMatch = notification.message.match(/BUG-\d+/);
+      if (bugIdMatch) {
+        router.push(`/bugs?bugId=${bugIdMatch[0]}`);
+      } else {
+        router.push("/bugs");
+      }
       setOpen(false);
     }
   };
@@ -91,12 +96,20 @@ export const NotificationButton = () => {
 
   const getRelativeTime = (date: string | Date) => {
     try {
-      // Parse the date and ensure we're working with the correct timestamp
-      const notificationDate = new Date(date);
+      // Parse the date - ensure we handle both string and Date objects
+      const notificationDate = typeof date === 'string' ? new Date(date) : date;
       
       // Check if date is valid
       if (isNaN(notificationDate.getTime())) {
         console.error("Invalid date:", date);
+        return "just now";
+      }
+      
+      // Get current time
+      const now = new Date();
+      
+      // If the notification date is in the future (timezone issue), treat as "just now"
+      if (notificationDate > now) {
         return "just now";
       }
       
