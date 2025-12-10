@@ -13,6 +13,9 @@ import { useCreateTask } from "../api/use-create-task";
 import { useUpdateTask } from "../api/use-update-task";
 import { useGetTasks } from "../api/use-get-tasks";
 import { useGetActivityLogs } from "@/features/activity/api/use-get-activity-logs";
+import { useGetCurrentUserRole } from "@/features/members/api/use-get-user-role";
+import { useGetMembers } from "@/features/members/api/use-get-members";
+import { MemberRole } from "@/features/members/types";
 import { cn } from "@/lib/utils";
 import {
   Select,
@@ -37,6 +40,23 @@ export function TaskDetailsDrawer({ task, open, onOpenChange }: TaskDetailsDrawe
 
   const createTask = useCreateTask();
   const updateTask = useUpdateTask();
+  
+  // Get current user role to check if admin
+  const { data: roleData, isLoading: isLoadingRole } = useGetCurrentUserRole();
+  
+  // Fetch members for assignee dropdown
+  const { data: members } = useGetMembers({ workspaceId: task?.workspaceId });
+  // Only ADMIN and PROJECT_MANAGER can edit task details
+  // Employees have view-only access (except Kanban drag-drop which is handled separately)
+  const isAdmin = roleData && [MemberRole.ADMIN, MemberRole.PROJECT_MANAGER].includes(roleData.role as MemberRole);
+  
+  // Debug log
+  console.log('Task Details Drawer - Role Check:', { 
+    roleData, 
+    isAdmin, 
+    isLoadingRole,
+    taskId: task?.id 
+  });
   
   // Fetch subtasks - filter from all tasks
   const { data: allTasksData } = useGetTasks({
@@ -221,13 +241,25 @@ export function TaskDetailsDrawer({ task, open, onOpenChange }: TaskDetailsDrawe
                                 <Circle className="h-4 w-4 text-muted-foreground hover:text-primary" />
                               )}
                             </button>
-                            <div className="min-w-0 flex-1">
-                              <span className="text-xs text-blue-600 dark:text-blue-400 font-medium block mb-0.5">
+                            <div 
+                              className="min-w-0 flex-1 cursor-pointer"
+                              onClick={() => {
+                                // Open the subtask in the details drawer
+                                onOpenChange(false); // Close current drawer first
+                                setTimeout(() => {
+                                  // Small delay to allow smooth transition
+                                  window.dispatchEvent(new CustomEvent('openTaskDetails', { 
+                                    detail: { task: subtask } 
+                                  }));
+                                }, 100);
+                              }}
+                            >
+                              <span className="text-xs text-blue-600 dark:text-blue-400 font-medium block mb-0.5 hover:underline">
                                 {subtask.issueId}
                               </span>
                               <p
                                 className={cn(
-                                  "text-sm truncate",
+                                  "text-sm truncate hover:text-primary",
                                   subtask.status === "Done" && "line-through text-muted-foreground"
                                 )}
                                 title={subtask.summary}
@@ -239,22 +271,87 @@ export function TaskDetailsDrawer({ task, open, onOpenChange }: TaskDetailsDrawe
 
                           {/* Priority */}
                           <div className="flex items-center gap-1.5 text-xs">
-                            <span className="text-orange-500">=</span>
-                            <span>{subtask.priority || 'Medium'}</span>
+                            {isAdmin ? (
+                              <Select
+                                value={subtask.priority || "Medium"}
+                                onValueChange={(value) => {
+                                  updateTask.mutate({
+                                    json: { priority: value as TaskPriority },
+                                    param: { taskId: subtask.id }
+                                  });
+                                }}
+                              >
+                                <SelectTrigger className="h-7 text-xs border-muted">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="Low">Low</SelectItem>
+                                  <SelectItem value="Medium">Medium</SelectItem>
+                                  <SelectItem value="High">High</SelectItem>
+                                  <SelectItem value="Critical">Critical</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            ) : (
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-orange-500">=</span>
+                                <span>{subtask.priority || 'Medium'}</span>
+                              </div>
+                            )}
                           </div>
 
                           {/* Assignee */}
                           <div className="flex items-center gap-2 min-w-0">
-                            {subtask.assignee && subtask.assignee.name ? (
-                              <>
-                                <MemberAvatar name={subtask.assignee.name || "Unknown"} className="size-5 flex-shrink-0" />
-                                <span className="text-sm truncate">{subtask.assignee.name}</span>
-                              </>
+                            {isAdmin ? (
+                              <Select
+                                value={subtask.assigneeId || "unassigned"}
+                                onValueChange={(value) => {
+                                  updateTask.mutate({
+                                    json: { assigneeId: value === "unassigned" ? undefined : value },
+                                    param: { taskId: subtask.id }
+                                  });
+                                }}
+                              >
+                                <SelectTrigger className="h-7 text-xs border-muted">
+                                  <SelectValue>
+                                    {subtask.assignee && subtask.assignee.name ? (
+                                      <div className="flex items-center gap-2">
+                                        <MemberAvatar name={subtask.assignee.name} className="size-4" />
+                                        <span className="truncate">{subtask.assignee.name}</span>
+                                      </div>
+                                    ) : (
+                                      <span className="text-muted-foreground">Unassigned</span>
+                                    )}
+                                  </SelectValue>
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="unassigned">
+                                    <div className="flex items-center gap-2">
+                                      <User className="h-4 w-4" />
+                                      <span>Unassigned</span>
+                                    </div>
+                                  </SelectItem>
+                                  {members?.documents?.map((member: any) => (
+                                    <SelectItem key={member.userId} value={member.userId}>
+                                      <div className="flex items-center gap-2">
+                                        <MemberAvatar name={member.name} className="size-4" />
+                                        <span>{member.name}</span>
+                                      </div>
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
                             ) : (
-                              <div className="flex items-center gap-2 text-muted-foreground">
-                                <User className="h-5 w-5 flex-shrink-0" />
-                                <span className="text-sm">Unassigned</span>
-                              </div>
+                              subtask.assignee && subtask.assignee.name ? (
+                                <>
+                                  <MemberAvatar name={subtask.assignee.name || "Unknown"} className="size-5 flex-shrink-0" />
+                                  <span className="text-sm truncate">{subtask.assignee.name}</span>
+                                </>
+                              ) : (
+                                <div className="flex items-center gap-2 text-muted-foreground">
+                                  <User className="h-5 w-5 flex-shrink-0" />
+                                  <span className="text-sm">Unassigned</span>
+                                </div>
+                              )
                             )}
                           </div>
 
@@ -329,16 +426,57 @@ export function TaskDetailsDrawer({ task, open, onOpenChange }: TaskDetailsDrawe
                   <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide block mb-3">
                     Assignee
                   </label>
-                  {task.assignee ? (
-                    <div className="flex items-center gap-3">
-                      <MemberAvatar name={task.assignee.name} className="size-7" />
-                      <span className="text-sm font-medium">{task.assignee.name}</span>
-                    </div>
+                  {isAdmin ? (
+                    <Select
+                      value={task.assigneeId || "unassigned"}
+                      onValueChange={(value) => {
+                        updateTask.mutate({
+                          json: { assigneeId: value === "unassigned" ? undefined : value },
+                          param: { taskId: task.id }
+                        });
+                      }}
+                    >
+                      <SelectTrigger className="h-9 text-sm font-medium">
+                        <SelectValue>
+                          {task.assignee ? (
+                            <div className="flex items-center gap-2">
+                              <MemberAvatar name={task.assignee.name} className="size-5" />
+                              <span>{task.assignee.name}</span>
+                            </div>
+                          ) : (
+                            <span className="text-muted-foreground">Unassigned</span>
+                          )}
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="unassigned">
+                          <div className="flex items-center gap-2">
+                            <User className="h-4 w-4" />
+                            <span>Unassigned</span>
+                          </div>
+                        </SelectItem>
+                        {members?.documents?.map((member: any) => (
+                          <SelectItem key={member.userId} value={member.userId}>
+                            <div className="flex items-center gap-2">
+                              <MemberAvatar name={member.name} className="size-4" />
+                              <span>{member.name}</span>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   ) : (
-                    <div className="flex items-center gap-3 text-muted-foreground">
-                      <User className="h-7 w-7" />
-                      <span className="text-sm">Unassigned</span>
-                    </div>
+                    task.assignee ? (
+                      <div className="flex items-center gap-3">
+                        <MemberAvatar name={task.assignee.name} className="size-7" />
+                        <span className="text-sm font-medium">{task.assignee.name}</span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-3 text-muted-foreground">
+                        <User className="h-7 w-7" />
+                        <span className="text-sm">Unassigned</span>
+                      </div>
+                    )
                   )}
                 </div>
 
@@ -347,25 +485,29 @@ export function TaskDetailsDrawer({ task, open, onOpenChange }: TaskDetailsDrawe
                   <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide block mb-3">
                     Priority
                   </label>
-                  <Select
-                    value={task.priority || "Medium"}
-                    onValueChange={(value) => {
-                      updateTask.mutate({
-                        json: { priority: value as TaskPriority },
-                        param: { taskId: task.id }
-                      });
-                    }}
-                  >
-                    <SelectTrigger className="h-9 text-sm font-medium">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Low">Low</SelectItem>
-                      <SelectItem value="Medium">Medium</SelectItem>
-                      <SelectItem value="High">High</SelectItem>
-                      <SelectItem value="Critical">Critical</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  {isAdmin ? (
+                    <Select
+                      value={task.priority || "Medium"}
+                      onValueChange={(value) => {
+                        updateTask.mutate({
+                          json: { priority: value as TaskPriority },
+                          param: { taskId: task.id }
+                        });
+                      }}
+                    >
+                      <SelectTrigger className="h-9 text-sm font-medium">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Low">Low</SelectItem>
+                        <SelectItem value="Medium">Medium</SelectItem>
+                        <SelectItem value="High">High</SelectItem>
+                        <SelectItem value="Critical">Critical</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <div className="text-sm font-medium">{task.priority || "Medium"}</div>
+                  )}
                 </div>
 
                 {/* Status */}
@@ -373,24 +515,28 @@ export function TaskDetailsDrawer({ task, open, onOpenChange }: TaskDetailsDrawe
                   <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide block mb-3">
                     Status
                   </label>
-                  <Select
-                    value={task.status}
-                    onValueChange={(value) => {
-                      updateTask.mutate({
-                        json: { status: value as TaskStatus },
-                        param: { taskId: task.id }
-                      });
-                    }}
-                  >
-                    <SelectTrigger className="h-9 text-sm font-medium">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="To Do">TO DO</SelectItem>
-                      <SelectItem value="In Progress">IN PROGRESS</SelectItem>
-                      <SelectItem value="Done">DONE</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  {isAdmin ? (
+                    <Select
+                      value={task.status}
+                      onValueChange={(value) => {
+                        updateTask.mutate({
+                          json: { status: value as TaskStatus },
+                          param: { taskId: task.id }
+                        });
+                      }}
+                    >
+                      <SelectTrigger className="h-9 text-sm font-medium">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="To Do">TO DO</SelectItem>
+                        <SelectItem value="In Progress">IN PROGRESS</SelectItem>
+                        <SelectItem value="Done">DONE</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <div className="text-sm font-medium">{task.status}</div>
+                  )}
                 </div>
 
                 {/* Parent */}
@@ -406,7 +552,7 @@ export function TaskDetailsDrawer({ task, open, onOpenChange }: TaskDetailsDrawe
                   <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide block mb-3">
                     Due date
                   </label>
-                  {isEditingDueDate ? (
+                  {isAdmin && isEditingDueDate ? (
                     <div className="flex gap-2">
                       <Input
                         type="date"
@@ -430,13 +576,18 @@ export function TaskDetailsDrawer({ task, open, onOpenChange }: TaskDetailsDrawe
                     </div>
                   ) : (
                     <div 
-                      className="flex items-center gap-3 text-sm cursor-pointer hover:bg-accent p-2 rounded"
+                      className={cn(
+                        "flex items-center gap-3 text-sm p-2 rounded",
+                        isAdmin && "cursor-pointer hover:bg-accent"
+                      )}
                       onClick={() => {
-                        const dateStr = task.dueDate 
-                          ? new Date(task.dueDate).toISOString().split('T')[0] 
-                          : new Date().toISOString().split('T')[0];
-                        setDueDateValue(dateStr);
-                        setIsEditingDueDate(true);
+                        if (isAdmin) {
+                          const dateStr = task.dueDate 
+                            ? new Date(task.dueDate).toISOString().split('T')[0] 
+                            : new Date().toISOString().split('T')[0];
+                          setDueDateValue(dateStr);
+                          setIsEditingDueDate(true);
+                        }
                       }}
                     >
                       <Calendar className="h-4 w-4 text-muted-foreground" />

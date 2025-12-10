@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, memo } from "react";
+import { useState, useCallback, memo, useEffect } from "react";
 import { ChevronDown, ChevronRight, Plus, MoreVertical, Eye, EyeOff, Trash2, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -24,6 +24,8 @@ import { useGetListViewColumns, ListViewColumn, useCreateListViewColumn, useDele
 import { useUpdateTask } from "../api/use-update-task";
 import { useCreateTask } from "../api/use-create-task";
 import { useGetMembers } from "@/features/members/api/use-get-members";
+import { useGetCurrentUserRole } from "@/features/members/api/use-get-user-role";
+import { MemberRole } from "@/features/members/types";
 import {
   Select,
   SelectContent,
@@ -74,6 +76,36 @@ export function JiraTableDynamic({ data, workspaceId, onAddSubtask }: JiraTableP
   const updateTask = useUpdateTask();
   const createTask = useCreateTask();
   const { data: members } = useGetMembers({ workspaceId });
+  
+  // Get current user role for permissions
+  const { data: roleData } = useGetCurrentUserRole();
+  const isAdmin = !!(roleData && [MemberRole.ADMIN, MemberRole.PROJECT_MANAGER].includes(roleData.role as MemberRole));
+
+  // Update selectedTask when data changes to reflect latest updates
+  useEffect(() => {
+    if (selectedTask && data) {
+      const updatedTask = data.find(t => t.id === selectedTask.id);
+      if (updatedTask) {
+        setSelectedTask(updatedTask);
+      }
+    }
+  }, [data, selectedTask?.id]);
+
+  // Listen for custom event to open subtask details
+  useEffect(() => {
+    const handleOpenTaskDetails = (event: CustomEvent) => {
+      const { task } = event.detail;
+      if (task) {
+        setSelectedTask(task);
+        setIsDrawerOpen(true);
+      }
+    };
+
+    window.addEventListener('openTaskDetails' as any, handleOpenTaskDetails);
+    return () => {
+      window.removeEventListener('openTaskDetails' as any, handleOpenTaskDetails);
+    };
+  }, []);
 
   // Filter visible columns and sort by position
   const visibleColumns = (listViewColumns || [])
@@ -236,11 +268,17 @@ export function JiraTableDynamic({ data, workspaceId, onAddSubtask }: JiraTableP
     e.stopPropagation();
     if (column.fieldName === 'issueId' || !column.fieldName) return; // Don't edit issue ID
     
+    // Only allow admins to edit cells inline
+    if (!isAdmin) {
+      console.log('🚫 Inline editing disabled for non-admin users');
+      return;
+    }
+    
     console.log('🖱️ Cell clicked:', { taskId: task.id, field: column.fieldName, taskSummary: task.summary?.slice(0, 30) });
     setEditingCell({ taskId: task.id, fieldName: column.fieldName });
     const currentValue = (task as any)[column.fieldName];
     setEditValue(currentValue || "");
-  }, []);
+  }, [isAdmin]);
 
   const handleCellUpdate = useCallback((task: Task, fieldName: string, value: any) => {
     console.log('📝 Updating task:', {
@@ -283,6 +321,7 @@ export function JiraTableDynamic({ data, workspaceId, onAddSubtask }: JiraTableP
   const renderCell = useCallback((task: Task, column: ListViewColumn, onCellClick?: (e: React.MouseEvent) => void) => {
     const value = (task as any)[column.fieldName];
     const isEditing = editingCell?.taskId === task.id && editingCell?.fieldName === column.fieldName;
+    const cursorClass = isAdmin && column.fieldName !== 'issueId' ? 'cursor-pointer' : '';
 
     // Editing state for text fields
     if (isEditing && (column.columnType === 'text' && column.fieldName !== 'issueId')) {
@@ -337,13 +376,13 @@ export function JiraTableDynamic({ data, workspaceId, onAddSubtask }: JiraTableP
           }
           if (task.assignee) {
             return (
-              <div className="flex items-center gap-2 cursor-pointer" onClick={onCellClick}>
+              <div className={`flex items-center gap-2 ${cursorClass}`} onClick={onCellClick}>
                 <MemberAvatar name={task.assignee.name} className="size-6" />
                 <span className="text-xs">{task.assignee.name}</span>
               </div>
             );
           }
-          return <span className="text-xs text-muted-foreground cursor-pointer" onClick={onCellClick}>-</span>;
+          return <span className={`text-xs text-muted-foreground ${cursorClass}`} onClick={onCellClick}>-</span>;
         }
         if (column.fieldName === 'reporterId' && task.reporter) {
           return (
@@ -390,9 +429,9 @@ export function JiraTableDynamic({ data, workspaceId, onAddSubtask }: JiraTableP
             </Popover>
           );
         }
-        if (!value) return <span className="text-xs text-muted-foreground cursor-pointer" onClick={onCellClick}>-</span>;
+        if (!value) return <span className={`text-xs text-muted-foreground ${cursorClass}`} onClick={onCellClick}>-</span>;
         const date = new Date(value);
-        return <span className="text-xs cursor-pointer" onClick={onCellClick}>{date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>;
+        return <span className={`text-xs ${cursorClass}`} onClick={onCellClick}>{date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>;
 
       case 'priority':
         if (isEditing) {
@@ -419,7 +458,7 @@ export function JiraTableDynamic({ data, workspaceId, onAddSubtask }: JiraTableP
         return (
           <Badge 
             variant="outline" 
-            className={`text-xs cursor-pointer ${PRIORITY_COLORS[value || 'Medium']}`}
+            className={`text-xs ${cursorClass} ${PRIORITY_COLORS[value || 'Medium']}`}
             onClick={onCellClick}
           >
             {value || 'Medium'}
@@ -452,7 +491,7 @@ export function JiraTableDynamic({ data, workspaceId, onAddSubtask }: JiraTableP
               </Select>
             );
           }
-          return <Badge variant="secondary" className="text-xs cursor-pointer" onClick={onCellClick}>{value}</Badge>;
+          return <Badge variant="secondary" className={`text-xs ${cursorClass}`} onClick={onCellClick}>{value}</Badge>;
         }
         if (column.fieldName === 'issueType') {
           return <Badge variant="outline" className="text-xs">{value}</Badge>;
@@ -492,7 +531,7 @@ export function JiraTableDynamic({ data, workspaceId, onAddSubtask }: JiraTableP
         }
         return <span className="text-xs cursor-pointer" onClick={onCellClick}>{value || '-'}</span>;
     }
-  }, [editingCell, editValue, members, handleCellUpdate]);
+  }, [editingCell, editValue, members, handleCellUpdate, isAdmin]);
 
   if (isLoading) {
     return (
@@ -531,85 +570,91 @@ export function JiraTableDynamic({ data, workspaceId, onAddSubtask }: JiraTableP
               </div>
             ))}
 
-            {/* Column Management Dropdown */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button className="px-4 py-3 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1 flex-shrink-0">
-                  <Settings className="h-3 w-3" />
-                  <span>Columns</span>
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56 max-h-96 overflow-y-auto">
-                <DropdownMenuLabel>Manage Columns</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                {(listViewColumns || []).map((column) => (
-                  <div key={column.id} className="flex items-center justify-between gap-2 px-2">
-                    <DropdownMenuCheckboxItem
-                      checked={column.isVisible}
-                      onCheckedChange={() => handleToggleColumnVisibility(column)}
-                      className="flex-1 cursor-pointer"
-                    >
-                      <span className="truncate">{column.displayName}</span>
-                    </DropdownMenuCheckboxItem>
-                    {!column.isSystem && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-6 w-6 p-0 flex-shrink-0"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDeleteColumn(column);
-                        }}
-                      >
-                        <Trash2 className="h-3 w-3 text-destructive" />
-                      </Button>
-                    )}
-                  </div>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
-
-            {/* Add Column button/input */}
-            {!isAddingColumn ? (
-              <button
-                onClick={() => setIsAddingColumn(true)}
-                className="px-4 py-3 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1 flex-shrink-0"
-              >
-                <Plus className="h-3 w-3" />
-                <span>Add column</span>
-              </button>
-            ) : (
-              <div className="px-4 py-3 flex items-center gap-2 flex-shrink-0">
-                <Input
-                  value={newColumnName}
-                  onChange={(e) => setNewColumnName(e.target.value)}
-                  placeholder="Column name"
-                  className="h-7 w-32 text-xs"
-                  autoFocus
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      handleAddColumn();
-                    }
-                    if (e.key === 'Escape') {
-                      setIsAddingColumn(false);
-                      setNewColumnName("");
-                    }
-                  }}
-                  onBlur={() => {
-                    if (newColumnName.trim()) {
-                      handleAddColumn();
-                    } else {
-                      setIsAddingColumn(false);
-                    }
-                  }}
-                />
-              </div>
-            )}
-
             {/* Actions column */}
             <div className="w-20 px-4 py-3 text-xs font-medium text-muted-foreground flex-shrink-0">
               Actions
             </div>
+
+            {/* Column Management Dropdown - Admin only */}
+            {isAdmin && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button 
+                    className="px-4 py-3 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1 flex-shrink-0"
+                  >
+                    <Settings className="h-3 w-3" />
+                    <span>Columns</span>
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56 max-h-96 overflow-y-auto">
+                  <DropdownMenuLabel>Manage Columns</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  {(listViewColumns || []).map((column) => (
+                    <div key={column.id} className="flex items-center justify-between gap-2 px-2">
+                      <DropdownMenuCheckboxItem
+                        checked={column.isVisible}
+                        onCheckedChange={() => handleToggleColumnVisibility(column)}
+                        className="flex-1 cursor-pointer"
+                      >
+                        <span className="truncate">{column.displayName}</span>
+                      </DropdownMenuCheckboxItem>
+                      {!column.isSystem && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 w-6 p-0 flex-shrink-0"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteColumn(column);
+                          }}
+                        >
+                          <Trash2 className="h-3 w-3 text-destructive" />
+                        </Button>
+                      )}
+                    </div>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+
+            {/* Add Column button/input - Admin only */}
+            {isAdmin && (
+              !isAddingColumn ? (
+                <button
+                  onClick={() => setIsAddingColumn(true)}
+                  className="px-4 py-3 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1 flex-shrink-0"
+                >
+                  <Plus className="h-3 w-3" />
+                  <span>Add column</span>
+                </button>
+              ) : (
+                <div className="px-4 py-3 flex items-center gap-2 flex-shrink-0">
+                  <Input
+                    value={newColumnName}
+                    onChange={(e) => setNewColumnName(e.target.value)}
+                    placeholder="Column name"
+                    className="h-7 w-32 text-xs"
+                    autoFocus
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        handleAddColumn();
+                      }
+                      if (e.key === 'Escape') {
+                        setIsAddingColumn(false);
+                        setNewColumnName("");
+                      }
+                    }}
+                    onBlur={() => {
+                      if (newColumnName.trim()) {
+                        handleAddColumn();
+                      } else {
+                        setIsAddingColumn(false);
+                      }
+                    }}
+                  />
+                </div>
+              )
+            )}
           </div>
         </div>
 
@@ -644,6 +689,7 @@ export function JiraTableDynamic({ data, workspaceId, onAddSubtask }: JiraTableP
                   setNewSubtaskTitle={setNewSubtaskTitle}
                   onCreateInlineSubtask={handleCreateInlineSubtask}
                   selectedTaskIds={selectedTaskIds}
+                  isAdmin={isAdmin}
                 />
               ))}
               {hasMore && (
@@ -695,6 +741,7 @@ interface TaskRowProps {
   setNewSubtaskTitle: (title: string) => void;
   onCreateInlineSubtask: (parentTaskId: string, parentTask: Task) => void;
   selectedTaskIds: Set<string>;
+  isAdmin: boolean;
 }
 
 const TaskRow = memo(function TaskRow({
@@ -718,6 +765,7 @@ const TaskRow = memo(function TaskRow({
   setNewSubtaskTitle,
   onCreateInlineSubtask,
   selectedTaskIds,
+  isAdmin,
 }: TaskRowProps) {
   const children = childrenMap.get(task.id) || [];
   const hasChildren = children.length > 0;
@@ -801,7 +849,7 @@ const TaskRow = memo(function TaskRow({
                 <div className="flex-1 min-w-0 truncate">
                   {renderCell(task, column, (e) => onCellClick(task, column, e))}
                 </div>
-                {hoveredTaskId === task.id && (
+                {hoveredTaskId === task.id && isAdmin && (
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
@@ -915,6 +963,7 @@ const TaskRow = memo(function TaskRow({
                 setNewSubtaskTitle={setNewSubtaskTitle}
                 onCreateInlineSubtask={onCreateInlineSubtask}
                 selectedTaskIds={selectedTaskIds}
+                isAdmin={isAdmin}
               />
             );
           })}
