@@ -31,7 +31,7 @@
 
 <!-- TABLE OF CONTENTS -->
 <details open="open">
-  <summary><h2 style="display: inline-block"> Table of Contents</h2></summary>
+  <summary><h2 style="display: inline-block">📑 Table of Contents</h2></summary>
   <ol>
     <li><a href="#-overview">Overview</a></li>
     <li><a href="#-key-highlights">Key Highlights</a></li>
@@ -46,7 +46,7 @@
 
 ---
 
-##  Overview
+## 📋 Overview
 
 **PMS1** is a comprehensive, enterprise-grade project management system designed to rival platforms like Jira and Monday.com. Built with modern web technologies, it provides organizations with powerful tools for task management, team collaboration, attendance tracking, and project oversight.
 
@@ -54,31 +54,31 @@
 
 ---
 
-##  Key Highlights
+## 🎯 Key Highlights
 
--  **Multi-workspace architecture** with role-based access control (RBAC)
--  **Kanban boards** with drag-and-drop task management
--  **Bug tracking system** with full lifecycle management
--  **Attendance management** with automated shift tracking
--  **Real-time notifications** and activity logging
--  **Dynamic custom fields** (Jira-style flexible task attributes)
--  **Bulk CSV import/export** for tasks and data
--  **Weekly reports** and requirement tracking
--  **Performance optimized** for 1,000+ concurrent users
+- ✅ **Multi-workspace architecture** with role-based access control (RBAC)
+- ✅ **Kanban boards** with drag-and-drop task management
+- ✅ **Bug tracking system** with full lifecycle management
+- ✅ **Attendance management** with automated shift tracking
+- ✅ **Real-time notifications** and activity logging
+- ✅ **Dynamic custom fields** (Jira-style flexible task attributes)
+- ✅ **Bulk CSV import/export** for tasks and data
+- ✅ **Weekly reports** and requirement tracking
+- ✅ **Performance optimized** for 1,000+ concurrent users
 
 <p align="right">(<a href="#top">back to top</a>)</p>
 
 ---
 
-##  Features
+## ✨ Features
 
-###  Authentication & Authorization
+### 🔐 Authentication & Authorization
 - Secure authentication with bcrypt password hashing
-- Role-based access control (RBAC): ADMIN, PROJECT_MANAGER, TEAM_LEAD, EMPLOYEE, MANAGEMENT
+- Role-based access control (RBAC): `ADMIN`, `PROJECT_MANAGER`, `TEAM_LEAD`, `EMPLOYEE`, `MANAGEMENT`
 - Session management with automatic token refresh
 - Workspace invitations with email-based onboarding
 
-###  Project & Task Management
+### 📊 Project & Task Management
 - Multi-project workspaces with team isolation
 - Kanban boards with drag-and-drop functionality
 - Task hierarchy with parent-child relationships
@@ -86,19 +86,19 @@
 - Bulk CSV import/export (1,000+ rows)
 - Advanced filtering and task priorities
 
-###  Bug Tracking
+### 🐛 Bug Tracking
 - Comprehensive bug tracker with severity levels
 - Bug lifecycle management
 - Attachments and comments support
 - Resolution tracking
 
-###  Attendance Management
+### ⏰ Attendance Management
 - Clock in/out system with shift tracking
 - Auto end-shift at 11:59 PM (cron automation)
 - Daily task logging during shifts
 - Admin attendance dashboard
 
-###  Reporting & Analytics
+### 📈 Reporting & Analytics
 - Dashboard with task statistics
 - Visual charts (pie, bar) for status distribution
 - Activity timeline (Jira-style audit logs)
@@ -108,7 +108,7 @@
 
 ---
 
-##  Tech Stack
+## 🛠️ Tech Stack
 
 ### Frontend
 - **[Next.js 14.2](https://nextjs.org/)** - React framework with App Router
@@ -130,7 +130,7 @@
 
 ---
 
-##  Prerequisites
+## 📦 Prerequisites
 
 Before you begin, ensure you have:
 
@@ -143,7 +143,7 @@ Before you begin, ensure you have:
 
 ---
 
-##  Getting Started
+## 🚀 Getting Started
 
 ### 1. Clone the repository
 `ash
@@ -215,62 +215,60 @@ npm run db:studio        # Open Drizzle Studio
 
 ##  Project Structure
 
-`
+```
 PMS1/
- src/
-    app/                    # Next.js App Router
-       (auth)/            # Authentication routes
-       (dashboard)/       # Dashboard routes
-          attendance/    # Attendance pages
-          bugs/          # Bug tracker
-          dashboard/     # Main dashboard
-          projects/      # Projects
-          tasks/         # Tasks
-          workspaces/    # Workspaces
-       api/               # API routes (Hono RPC)
-    components/            # React components
-       ui/               # shadcn/ui components
-    db/                   # Database config
-       schema.ts         # Drizzle schema
-       index.ts          # DB connection
-    features/             # Feature modules
-       auth/             # Authentication
-       tasks/            # Task management
-       bugs/             # Bug tracking
-       attendance/       # Attendance
-       projects/         # Projects
-       workspaces/       # Workspaces
-    lib/                  # Utilities
- drizzle/                  # Database migrations
- docs/                     # Documentation
- public/                   # Static assets
- scripts/                  # Utility scripts
-`
+├── src/
+│   ├── app/                    # Next.js App Router
+│   │   ├── (auth)/            # Authentication routes
+│   │   ├── (dashboard)/       # Dashboard routes
+│   │   │   ├── attendance/    # Attendance pages
+│   │   │   ├── bugs/          # Bug tracker
+│   │   │   ├── dashboard/     # Main dashboard
+│   │   │   ├── projects/      # Projects
+│   │   │   ├── tasks/         # Tasks
+│   │   │   └── workspaces/    # Workspaces
+│   │   └── api/               # API routes (Hono RPC)
+│   ├── components/            # React components
+│   │   └── ui/               # shadcn/ui components
+│   ├── db/                   # Database config
+│   │   ├── schema.ts         # Drizzle schema
+│   │   └── index.ts          # DB connection
+│   ├── features/             # Feature modules
+│   │   ├── auth/             # Authentication
+│   │   ├── tasks/            # Task management
+│   │   ├── bugs/             # Bug tracking
+│   │   ├── attendance/       # Attendance
+│   │   ├── projects/         # Projects
+│   │   └── workspaces/       # Workspaces
+│   └── lib/                  # Utilities
+├── drizzle/                  # Database migrations
+├── docs/                     # Documentation
+├── public/                   # Static assets
+└── scripts/                  # Utility scripts
+```
 
 <p align="right">(<a href="#top">back to top</a>)</p>
 
 ---
 
-##  Database Schema
+## 🗄️ Database Schema
 
 ### Core Tables (19 total)
 
 | Table | Description |
 |-------|-------------|
-| users | User accounts with authentication & profiles |
-| workspaces | Multi-tenant workspaces with invite codes |
-| members | User-workspace relationships (RBAC) |
-| projects | Projects within workspaces |
-| 	asks | Task management with custom fields (JSONB) |
-| ugs | Bug tracking with severity levels |
-| ttendance | Attendance records with shift tracking |
-| ctivity_logs | Audit trail for all system changes |
-| 
-otifications | User notifications |
-| weekly_reports | Weekly report submissions |
-| 
-equirements | Project requirements |
-| invitations | Workspace invitations |
+| `users` | User accounts with authentication & profiles |
+| `workspaces` | Multi-tenant workspaces with invite codes |
+| `members` | User-workspace relationships (RBAC) |
+| `projects` | Projects within workspaces |
+| `tasks` | Task management with custom fields (JSONB) |
+| `bugs` | Bug tracking with severity levels |
+| `attendance` | Attendance records with shift tracking |
+| `activity_logs` | Audit trail for all system changes |
+| `notifications` | User notifications |
+| `weekly_reports` | Weekly report submissions |
+| `requirements` | Project requirements |
+| `invitations` | Workspace invitations |
 
 **Key Features:**
 - Foreign key constraints for data integrity
@@ -285,7 +283,7 @@ See [Database Structure Documentation](./docs/DATABASE_STRUCTURE.md) for complet
 
 ---
 
-##  Documentation
+## 📖 Documentation
 
 - **[Comprehensive System Guide](./docs/COMPREHENSIVE_SYSTEM_GUIDE.md)**
 - **[Database Structure](./docs/DATABASE_STRUCTURE.md)**
@@ -294,7 +292,7 @@ See [Database Structure Documentation](./docs/DATABASE_STRUCTURE.md) for complet
 
 ---
 
-##  License
+## 📝 License
 
 This project is licensed under the **MIT License**.
 
@@ -302,8 +300,12 @@ This project is licensed under the **MIT License**.
 
 <div align="center">
 
-**Built with  by [Karan Moorthy](https://github.com/karan-moorthy)**
+**Built with ❤️ by [Karan Moorthy](https://github.com/karan-moorthy)**
 
-**Next.js  TypeScript  PostgreSQL**
+**Next.js • TypeScript • PostgreSQL**
+
+<p align="center">
+  <a href="#top">⬆️ Back to Top</a>
+</p>
 
 </div>
