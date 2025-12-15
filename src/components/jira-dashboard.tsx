@@ -520,24 +520,22 @@ export const JiraDashboard = () => {
               </Select>
             </div>
 
-            {isAdmin && (
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Assignee</label>
-                <Select value={selectedAssignee} onValueChange={setSelectedAssignee}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="All Assignees" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Assignees</SelectItem>
-                    {members.map((member: any) => (
-                      <SelectItem key={member.userId} value={member.userId}>
-                        {member.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
+            <div className="space-y-2" style={{ display: isAdmin === false ? 'none' : 'block' }} suppressHydrationWarning>
+              <label className="text-sm font-medium">Assignee</label>
+              <Select value={selectedAssignee} onValueChange={setSelectedAssignee}>
+                <SelectTrigger>
+                  <SelectValue placeholder="All Assignees" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Assignees</SelectItem>
+                  {members.map((member: any) => (
+                    <SelectItem key={member.userId} value={member.userId}>
+                      {member.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
             <div className="space-y-2">
               <label className="text-sm font-medium">Month</label>

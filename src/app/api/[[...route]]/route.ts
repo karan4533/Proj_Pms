@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { handle } from "hono/vercel";
+import { startCronService } from "@/lib/cron-service";
 
 import auth from "@/features/auth/server/route";
 import members from "@/features/members/server/route";
@@ -40,6 +41,11 @@ const routes = app
   .route("/notifications", notifications)
   .route("/weekly-reports", weeklyReports)
   .route("/bugs", bugs);
+
+// Start cron service for auto-ending shifts at 11:59 PM
+if (process.env.NODE_ENV !== 'test') {
+  startCronService();
+}
 
 export const GET = handle(app);
 export const POST = handle(app);

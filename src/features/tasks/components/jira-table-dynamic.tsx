@@ -276,8 +276,16 @@ export function JiraTableDynamic({ data, workspaceId, onAddSubtask }: JiraTableP
     
     console.log('🖱️ Cell clicked:', { taskId: task.id, field: column.fieldName, taskSummary: task.summary?.slice(0, 30) });
     setEditingCell({ taskId: task.id, fieldName: column.fieldName });
-    const currentValue = (task as any)[column.fieldName];
-    setEditValue(currentValue || "");
+    
+    // Handle labels field - convert array to comma-separated string for editing
+    if (column.fieldName === 'labels') {
+      const currentValue = (task as any)[column.fieldName];
+      const labelsString = Array.isArray(currentValue) ? currentValue.join(', ') : '';
+      setEditValue(labelsString);
+    } else {
+      const currentValue = (task as any)[column.fieldName];
+      setEditValue(currentValue || "");
+    }
   }, [isAdmin]);
 
   const handleCellUpdate = useCallback((task: Task, fieldName: string, value: any) => {
@@ -289,19 +297,45 @@ export function JiraTableDynamic({ data, workspaceId, onAddSubtask }: JiraTableP
       newValue: value
     });
     
-    updateTask.mutate({
-      json: {
-        [fieldName]: value
-      },
-      param: { taskId: task.id }
-    }, {
-      onSuccess: (data) => {
-        console.log('✅ Update successful:', data);
-      },
-      onError: (error) => {
-        console.error('❌ Update failed:', error);
-      }
-    });
+    // Check if this is a custom field (not a standard task field)
+    const standardFields = ['summary', 'issueId', 'issueType', 'status', 'priority', 'assigneeId', 'dueDate', 'labels', 'description'];
+    const isCustomField = !standardFields.includes(fieldName);
+    
+    if (isCustomField) {
+      // Update custom field in the customFields JSON object
+      const customFields = task.customFields && typeof task.customFields === 'object' ? { ...(task.customFields as any) } : {};
+      customFields[fieldName] = value;
+      
+      updateTask.mutate({
+        json: {
+          customFields: customFields
+        },
+        param: { taskId: task.id }
+      }, {
+        onSuccess: (data) => {
+          console.log('✅ Custom field update successful:', data);
+        },
+        onError: (error) => {
+          console.error('❌ Custom field update failed:', error);
+        }
+      });
+    } else {
+      // Update standard field
+      updateTask.mutate({
+        json: {
+          [fieldName]: value
+        },
+        param: { taskId: task.id }
+      }, {
+        onSuccess: (data) => {
+          console.log('✅ Update successful:', data);
+        },
+        onError: (error) => {
+          console.error('❌ Update failed:', error);
+        }
+      });
+    }
+    
     setEditingCell(null);
     setEditValue("");
   }, [updateTask]);
@@ -319,7 +353,15 @@ export function JiraTableDynamic({ data, workspaceId, onAddSubtask }: JiraTableP
 
   // Render cell content based on column type - Memoized for performance
   const renderCell = useCallback((task: Task, column: ListViewColumn, onCellClick?: (e: React.MouseEvent) => void) => {
-    const value = (task as any)[column.fieldName];
+    // Try to get value from standard fields first, then from customFields
+    let value = (task as any)[column.fieldName];
+    
+    // If not found in standard fields and task has customFields, check there
+    if (value === undefined && task.customFields && typeof task.customFields === 'object') {
+      const customFieldsObj = task.customFields as { [key: string]: any };
+      value = customFieldsObj[column.displayName] || customFieldsObj[column.fieldName];
+    }
+    
     const isEditing = editingCell?.taskId === task.id && editingCell?.fieldName === column.fieldName;
     const cursorClass = isAdmin && column.fieldName !== 'issueId' ? 'cursor-pointer' : '';
 
@@ -499,11 +541,38 @@ export function JiraTableDynamic({ data, workspaceId, onAddSubtask }: JiraTableP
         return <span className="text-xs cursor-pointer" onClick={onCellClick}>{value || '-'}</span>;
 
       case 'labels':
+        // Check if this cell is being edited
+        if (editingCell?.taskId === task.id && editingCell?.fieldName === column.fieldName) {
+          return (
+            <Input
+              autoFocus
+              value={editValue}
+              onChange={(e) => setEditValue(e.target.value)}
+              onBlur={() => {
+                const labelsArray = editValue.split(',').map(l => l.trim()).filter(l => l);
+                handleCellUpdate(task, column.fieldName, labelsArray);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  const labelsArray = editValue.split(',').map(l => l.trim()).filter(l => l);
+                  handleCellUpdate(task, column.fieldName, labelsArray);
+                } else if (e.key === 'Escape') {
+                  setEditingCell(null);
+                  setEditValue("");
+                }
+              }}
+              placeholder="Enter labels (comma-separated)"
+              className="h-8 text-xs"
+            />
+          );
+        }
+        
+        // Display mode
         if (!value || !Array.isArray(value) || value.length === 0) {
-          return <span className="text-xs text-muted-foreground">-</span>;
+          return <span className="text-xs text-muted-foreground cursor-pointer" onClick={onCellClick}>-</span>;
         }
         return (
-          <div className="flex flex-wrap gap-1">
+          <div className="flex flex-wrap gap-1 cursor-pointer" onClick={onCellClick}>
             {value.slice(0, 2).map((label, idx) => (
               <Badge key={idx} variant="outline" className="text-xs">
                 {label}

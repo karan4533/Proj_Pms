@@ -37,6 +37,8 @@ export function TaskDetailsDrawer({ task, open, onOpenChange }: TaskDetailsDrawe
   const [descriptionValue, setDescriptionValue] = useState("");
   const [isEditingDueDate, setIsEditingDueDate] = useState(false);
   const [dueDateValue, setDueDateValue] = useState("");
+  const [isEditingLabels, setIsEditingLabels] = useState(false);
+  const [labelsValue, setLabelsValue] = useState("");
 
   const createTask = useCreateTask();
   const updateTask = useUpdateTask();
@@ -601,16 +603,74 @@ export function TaskDetailsDrawer({ task, open, onOpenChange }: TaskDetailsDrawe
                   <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide block mb-3">
                     Labels
                   </label>
-                  {task.labels && Array.isArray(task.labels) && task.labels.length > 0 ? (
-                    <div className="flex flex-wrap gap-2">
-                      {task.labels.map((label, index) => (
-                        <Badge key={index} variant="outline" className="text-xs px-2 py-1">
-                          {label}
-                        </Badge>
-                      ))}
-                    </div>
+                  {isAdmin ? (
+                    isEditingLabels ? (
+                      <div className="space-y-2">
+                        <Input
+                          value={labelsValue}
+                          onChange={(e) => setLabelsValue(e.target.value)}
+                          placeholder="Enter labels separated by commas"
+                          className="text-sm"
+                          autoFocus
+                        />
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            onClick={() => {
+                              const labelsArray = labelsValue.split(',').map(l => l.trim()).filter(l => l);
+                              updateTask.mutate({
+                                json: { labels: labelsArray },
+                                param: { taskId: task.id }
+                              });
+                              setIsEditingLabels(false);
+                            }}
+                          >
+                            Save
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setIsEditingLabels(false)}
+                          >
+                            Cancel
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div
+                        className="cursor-pointer hover:bg-muted/50 rounded p-2 -ml-2"
+                        onClick={() => {
+                          const currentLabels = task.labels && Array.isArray(task.labels) ? task.labels.join(', ') : '';
+                          setLabelsValue(currentLabels);
+                          setIsEditingLabels(true);
+                        }}
+                      >
+                        {task.labels && Array.isArray(task.labels) && task.labels.length > 0 ? (
+                          <div className="flex flex-wrap gap-2">
+                            {task.labels.map((label, index) => (
+                              <Badge key={index} variant="outline" className="text-xs px-2 py-1">
+                                {label}
+                              </Badge>
+                            ))}
+                          </div>
+                        ) : (
+                          <span className="text-sm text-muted-foreground">None (Click to add)</span>
+                        )}
+                      </div>
+                    )
                   ) : (
-                    <span className="text-sm text-muted-foreground">None</span>
+                    // Read-only view for non-admins
+                    task.labels && Array.isArray(task.labels) && task.labels.length > 0 ? (
+                      <div className="flex flex-wrap gap-2">
+                        {task.labels.map((label, index) => (
+                          <Badge key={index} variant="outline" className="text-xs px-2 py-1">
+                            {label}
+                          </Badge>
+                        ))}
+                      </div>
+                    ) : (
+                      <span className="text-sm text-muted-foreground">None</span>
+                    )
                   )}
                 </div>
 

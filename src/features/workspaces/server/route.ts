@@ -30,12 +30,13 @@ const app = new Hono()
 
     const workspaceIds = userMembers.map((member) => member.workspaceId);
 
-    // Get all workspaces user is a member of
+    // Get all workspaces user is a member of (limited to 50 for performance)
     const userWorkspaces = await db
       .select()
       .from(workspaces)
       .where(inArray(workspaces.id, workspaceIds))
-      .orderBy(desc(workspaces.createdAt));
+      .orderBy(desc(workspaces.createdAt))
+      .limit(50);
 
     return c.json({ 
       data: { 

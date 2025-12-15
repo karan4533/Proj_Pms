@@ -25,9 +25,9 @@ export const useGetCurrentUserRole = () => {
       return data;
     },
     retry: false, // Don't retry 401 errors
-    staleTime: 5 * 60 * 1000, // Cache for 5 minutes to prevent refetching
-    gcTime: 10 * 60 * 1000, // Keep in cache for 10 minutes
-    refetchOnMount: false, // Don't refetch on component mount if data exists
+    staleTime: 0, // Always consider data stale to ensure fresh role data
+    gcTime: 5 * 60 * 1000, // Keep in cache for 5 minutes
+    refetchOnMount: true, // Refetch on mount to catch role changes
     refetchOnWindowFocus: false, // Don't refetch on window focus
   });
 

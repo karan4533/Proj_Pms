@@ -192,6 +192,7 @@ const app = new Hono()
       }
 
       // Get user's own completed attendance records from ALL workspaces
+      // Limited to 50 records for optimal performance
       const records = await db
         .select({
           id: attendance.id,
@@ -209,7 +210,8 @@ const app = new Hono()
           eq(attendance.userId, user.id),
           inArray(attendance.status, ["COMPLETED", "AUTO_COMPLETED"])
         ))
-        .orderBy(desc(attendance.shiftStartTime));
+        .orderBy(desc(attendance.shiftStartTime))
+        .limit(50);
 
       return c.json({ data: records });
     }
@@ -282,6 +284,7 @@ const app = new Hono()
       }
 
       // Get ALL completed attendance records from ALL workspaces (company-wide)
+      // Limited to 50 records for optimal performance
       const records = await db
         .select({
           id: attendance.id,
@@ -300,7 +303,8 @@ const app = new Hono()
         .from(attendance)
         .innerJoin(users, eq(attendance.userId, users.id))
         .where(inArray(attendance.status, ["COMPLETED", "AUTO_COMPLETED"]))
-        .orderBy(desc(attendance.shiftStartTime));
+        .orderBy(desc(attendance.shiftStartTime))
+        .limit(50);
 
       return c.json({ data: records });
     }

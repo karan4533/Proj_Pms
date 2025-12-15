@@ -40,7 +40,7 @@ const app = new Hono()
       return c.json({ error: "Unauthorized - Admin access required" }, 403);
     }
 
-    // Get ALL bugs with full details
+    // Get ALL bugs with full details (limited to 50 for performance)
     const bugsList = await db
       .select({
         bug: bugs,
@@ -57,7 +57,8 @@ const app = new Hono()
       })
       .from(bugs)
       .leftJoin(users, eq(bugs.assignedTo, users.id))
-      .orderBy(desc(bugs.createdAt));
+      .orderBy(desc(bugs.createdAt))
+      .limit(50);
 
     // Get comment counts for each bug
     const bugsWithComments = await Promise.all(

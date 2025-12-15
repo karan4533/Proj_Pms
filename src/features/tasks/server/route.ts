@@ -179,7 +179,7 @@ const app = new Hono()
         dueDate: z.string().nullish(),
         month: z.string().nullish(),
         week: z.string().nullish(),
-        limit: z.string().optional().transform(val => val ? parseInt(val) : 100),
+        limit: z.string().optional().transform(val => val ? parseInt(val) : 50),
         offset: z.string().optional().transform(val => val ? parseInt(val) : 0),
       })
     ),
@@ -1368,6 +1368,44 @@ const app = new Hono()
           const actualHours = getCellValue(row, ['actual hours', 'actualhours', 'actual time', 'time spent']);
           const positionValue = getCellValue(row, ['position', 'order', 'rank']);
           
+          // Extract custom fields (any column not in standard fields)
+          const standardFields = [
+            'summary', 'task', 'title', 'description',
+            'summary id', 'summaryid', 'task id',
+            'issue id', 'issueid', 'key', 'id',
+            'issue type', 'issuetype', 'type',
+            'status', 'state',
+            'project name', 'projectname', 'project',
+            'priority',
+            'resolution',
+            'assignee', 'assigned to', 'owner',
+            'reporter', 'reported by',
+            'creator', 'created by', 'author',
+            'created', 'create date', 'created date',
+            'updated', 'update date', 'updated date', 'last updated',
+            'resolved', 'resolve date', 'resolved date', 'resolution date',
+            'due date', 'duedate', 'due',
+            'labels', 'tags', 'label',
+            'details', 'notes',
+            'project_id', 'projectid',
+            'workspace_id', 'workspaceid',
+            'estimated hours', 'estimatedhours', 'estimate', 'estimated time',
+            'actual hours', 'actualhours', 'actual time', 'time spent',
+            'position', 'order', 'rank'
+          ];
+          
+          const customFields: { [key: string]: any } = {};
+          headers.forEach((header, index) => {
+            const normalizedHeader = header.trim().toLowerCase();
+            // Check if this is NOT a standard field
+            if (!standardFields.includes(normalizedHeader) && row[index]?.trim()) {
+              // Store custom field with original header name as key
+              customFields[header.trim()] = row[index].trim();
+            }
+          });
+          
+          console.log(`📦 Custom fields detected:`, Object.keys(customFields).length > 0 ? customFields : 'None');
+          
           // Map status to enum
           let taskStatus = TaskStatus.TODO;
           const statusMap: { [key: string]: TaskStatus } = {
@@ -1466,6 +1504,7 @@ const app = new Hono()
             estimatedHours: parsedEstimatedHours,
             actualHours: parsedActualHours,
             labels: parsedLabels,
+            customFields: Object.keys(customFields).length > 0 ? JSON.stringify(customFields) : null,
             position: parsedPosition,
             // Upload tracking
             uploadBatchId: uploadBatchId,

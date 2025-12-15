@@ -26,7 +26,7 @@ export const useGetTasks = ({
   search,
   month,
   week,
-  limit = 2000,  // Increased to support showing all tasks
+  limit = 50,  // Optimized for performance
   offset = 0,
 }: UseGetTasksProps) => {
   const query = useQuery({

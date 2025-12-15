@@ -21,6 +21,7 @@ export const createTaskSchema = z.object({
   estimatedHours: z.number().optional(),
   actualHours: z.number().optional(),
   labels: z.array(z.string()).optional(),
+  customFields: z.record(z.any()).optional(), // Dynamic custom fields
 });
 
 export const bulkCreateTasksSchema = z.object({

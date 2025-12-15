@@ -121,6 +121,7 @@ export const tasks = pgTable('tasks', {
   dueDate: timestamp('due_date'),
   labels: jsonb('labels'), // Array of labels as JSON
   description: text('description'),
+  customFields: jsonb('custom_fields'), // Dynamic custom column data as JSON
   
   // Keep existing relationships
   projectId: uuid('project_id').references(() => projects.id, { onDelete: 'cascade' }),

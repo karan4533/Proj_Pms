@@ -50,6 +50,7 @@ export type Task = {
   dueDate?: string;
   labels?: string[];
   description?: string;
+  customFields?: { [key: string]: any }; // Dynamic custom column data
   projectId?: string;
   workspaceId: string;
   estimatedHours?: number;

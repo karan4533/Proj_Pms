@@ -84,18 +84,20 @@ const app = new Hono()
       let projectList;
       
       if (adminCheck) {
-        // Admins: Return all projects
+        // Admins: Return all projects (limited to 50 for performance)
         if (workspaceId) {
           projectList = await db
             .select()
             .from(projects)
             .where(eq(projects.workspaceId, workspaceId))
-            .orderBy(desc(projects.createdAt));
+            .orderBy(desc(projects.createdAt))
+            .limit(50);
         } else {
           projectList = await db
             .select()
             .from(projects)
-            .orderBy(desc(projects.createdAt));
+            .orderBy(desc(projects.createdAt))
+            .limit(50);
         }
       } else {
         // Employees: Return only projects where they have tasks assigned

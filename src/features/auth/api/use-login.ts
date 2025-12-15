@@ -16,15 +16,22 @@ export const useLogin = () => {
   const mutation = useMutation<ResponseType, Error, RequestType>({
     mutationFn: async ({ json }) => {
       const response = await client.api.auth.login.$post({ json });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error("error" in errorData ? errorData.error : "Invalid credentials");
+      }
+      
       return await response.json();
     },
     onSuccess: () => {
-      toast.success("Logged in.");
+      toast.success("Logged in successfully");
       router.refresh();
       queryClient.invalidateQueries({ queryKey: ["current"] });
+      queryClient.invalidateQueries({ queryKey: ["current-user-role"] });
     },
-    onError: () => {
-      toast.error("Failed to log in.");
+    onError: (error) => {
+      toast.error(error.message || "Invalid credentials");
     },
   });
 
