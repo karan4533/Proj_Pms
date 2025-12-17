@@ -9,7 +9,7 @@ import { sessionMiddleware } from "@/lib/session-middleware";
 
 // Schema for list view column validation
 const insertListViewColumnSchema = z.object({
-  workspaceId: z.string().uuid(),
+  projectId: z.string().uuid(),
   fieldName: z.string().min(1, "Field name is required"),
   displayName: z.string().min(1, "Display name is required"),
   columnType: z.enum(['text', 'select', 'user', 'date', 'labels', 'priority']),
@@ -35,19 +35,27 @@ const reorderColumnsSchema = z.object({
 });
 
 const app = new Hono()
-  // Get all list view columns for a workspace
+  // Get all list view columns for a project
   .get(
     "/columns",
     sessionMiddleware,
-    zValidator("query", z.object({ workspaceId: z.string().uuid() })),
+    zValidator("query", z.object({ projectId: z.string().uuid() })),
     async (c) => {
-      const { workspaceId } = c.req.valid("query");
+      const { projectId } = c.req.valid("query");
+      
+      console.log('📋 GET /columns request:', { projectId });
       
       const columns = await db
         .select()
         .from(listViewColumns)
-        .where(eq(listViewColumns.workspaceId, workspaceId))
+        .where(eq(listViewColumns.projectId, projectId))
         .orderBy(listViewColumns.position);
+      
+      console.log('📊 Found columns:', {
+        projectId,
+        count: columns.length,
+        columns: columns.map(c => ({ id: c.id.slice(0, 8), fieldName: c.fieldName, displayName: c.displayName, isVisible: c.isVisible }))
+      });
       
       return c.json({ data: columns });
     }
@@ -66,7 +74,7 @@ const app = new Hono()
         const maxPosition = await db
           .select({ maxPos: listViewColumns.position })
           .from(listViewColumns)
-          .where(eq(listViewColumns.workspaceId, data.workspaceId))
+          .where(eq(listViewColumns.projectId, data.projectId))
           .orderBy(desc(listViewColumns.position))
           .limit(1);
         

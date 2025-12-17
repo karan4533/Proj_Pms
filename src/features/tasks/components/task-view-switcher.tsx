@@ -142,16 +142,17 @@ export const TaskViewSwitcher = ({
         ) : (
           <>
             <TabsContent value="table" className="mt-0">
-              {effectiveWorkspaceId ? (
+              {effectiveWorkspaceId || currentProjectId ? (
                 <JiraTableDynamic 
-                  key={effectiveWorkspaceId}
+                  key={currentProjectId || effectiveWorkspaceId}
                   data={(tasks?.documents ?? []) as Task[]}
-                  workspaceId={effectiveWorkspaceId}
+                  projectId={currentProjectId} // ✅ Project-specific columns
+                  workspaceId={effectiveWorkspaceId} // Fallback for backward compatibility
                   onAddSubtask={handleAddSubtask}
                 />
               ) : (
                 <div className="w-full border rounded-lg h-[200px] flex flex-col items-center justify-center">
-                  <p className="text-muted-foreground">No workspace found</p>
+                  <p className="text-muted-foreground">No workspace or project found</p>
                 </div>
               )}
             </TabsContent>

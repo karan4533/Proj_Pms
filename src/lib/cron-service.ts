@@ -62,6 +62,8 @@ async function runCronJob() {
 /**
  * Start the cron job service
  */
+let listenersRegistered = false;
+
 export function startCronService() {
   if (cronInterval) {
     console.log("⚠️  Cron service already running");
@@ -78,9 +80,12 @@ export function startCronService() {
   // Then run every minute
   cronInterval = setInterval(runCronJob, 60 * 1000); // Every 60 seconds
 
-  // Handle process termination
-  process.on('SIGTERM', stopCronService);
-  process.on('SIGINT', stopCronService);
+  // Handle process termination - only register once
+  if (!listenersRegistered) {
+    process.on('SIGTERM', stopCronService);
+    process.on('SIGINT', stopCronService);
+    listenersRegistered = true;
+  }
 }
 
 /**

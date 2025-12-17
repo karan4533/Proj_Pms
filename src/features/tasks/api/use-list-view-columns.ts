@@ -4,7 +4,8 @@ import { client } from "@/lib/rpc";
 // Types
 export type ListViewColumn = {
   id: string;
-  workspaceId: string;
+  workspaceId: string | null; // Nullable for backward compatibility
+  projectId: string | null;   // Project-specific columns
   fieldName: string;
   displayName: string;
   columnType: 'text' | 'select' | 'user' | 'date' | 'labels' | 'priority';
@@ -18,24 +19,33 @@ export type ListViewColumn = {
   updatedAt: string;
 };
 
-// Get all columns for a workspace
-export const useGetListViewColumns = (workspaceId: string) => {
+// Get all columns for a project
+export const useGetListViewColumns = (projectId: string) => {
   return useQuery({
-    queryKey: ["list-view-columns", workspaceId],
+    queryKey: ["list-view-columns", projectId],
     queryFn: async () => {
+      console.log('🔍 Fetching columns for projectId:', projectId);
+      
       // @ts-ignore - TypeScript has issues with bracket notation in nested routes
       const response = await client.api.tasks["list-view"].columns.$get({
-        query: { workspaceId },
+        query: { projectId },
       });
 
       if (!response.ok) {
+        console.error('❌ Failed to fetch columns:', response.status, response.statusText);
         throw new Error("Failed to fetch list view columns");
       }
 
       const { data } = await response.json();
+      console.log('✅ Columns fetched:', {
+        projectId,
+        count: data.length,
+        columns: data.map((c: any) => ({ fieldName: c.fieldName, displayName: c.displayName, isVisible: c.isVisible }))
+      });
+      
       return data as ListViewColumn[];
     },
-    enabled: !!workspaceId,
+    enabled: !!projectId,
   });
 };
 
@@ -45,7 +55,7 @@ export const useCreateListViewColumn = () => {
 
   return useMutation({
     mutationFn: async (json: {
-      workspaceId: string;
+      projectId: string;
       fieldName: string;
       displayName: string;
       columnType: 'text' | 'select' | 'user' | 'date' | 'labels' | 'priority';
@@ -66,7 +76,7 @@ export const useCreateListViewColumn = () => {
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ 
-        queryKey: ["list-view-columns", variables.workspaceId] 
+        queryKey: ["list-view-columns", variables.projectId] 
       });
     },
   });
@@ -77,9 +87,9 @@ export const useUpdateListViewColumn = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ id, workspaceId, updates }: { 
+    mutationFn: async ({ id, projectId, updates }: { 
       id: string; 
-      workspaceId: string; 
+      projectId: string; 
       updates: {
         displayName?: string;
         width?: number;
@@ -101,7 +111,7 @@ export const useUpdateListViewColumn = () => {
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ 
-        queryKey: ["list-view-columns", variables.workspaceId] 
+        queryKey: ["list-view-columns", variables.projectId] 
       });
     },
   });
@@ -112,8 +122,8 @@ export const useReorderListViewColumns = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ workspaceId, columns }: { 
-      workspaceId: string; 
+    mutationFn: async ({ projectId, columns }: { 
+      projectId: string; 
       columns: { id: string; position: number; }[]
     }) => {
       // @ts-ignore - TypeScript has issues with bracket notation in nested routes
@@ -129,7 +139,7 @@ export const useReorderListViewColumns = () => {
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ 
-        queryKey: ["list-view-columns", variables.workspaceId] 
+        queryKey: ["list-view-columns", variables.projectId] 
       });
     },
   });
@@ -139,7 +149,7 @@ export const useReorderListViewColumns = () => {
 export const useDeleteListViewColumn = () => {
   const queryClient = useQueryClient();
 
-  return useMutation<any, Error, { id: string; workspaceId: string }>({
+  return useMutation<any, Error, { id: string; projectId: string }>({
     mutationFn: async ({ id }) => {
       // @ts-ignore - TypeScript has issues with bracket notation in nested routes
       const response = await client.api.tasks["list-view"].columns[":id"].$delete({
@@ -154,7 +164,7 @@ export const useDeleteListViewColumn = () => {
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ 
-        queryKey: ["list-view-columns", variables.workspaceId] 
+        queryKey: ["list-view-columns", variables.projectId] 
       });
     },
   });

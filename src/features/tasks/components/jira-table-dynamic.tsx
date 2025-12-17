@@ -71,7 +71,22 @@ export function JiraTableDynamic({ data, workspaceId, onAddSubtask }: JiraTableP
   const [creatingSubtaskForId, setCreatingSubtaskForId] = useState<string | null>(null);
   const [newSubtaskTitle, setNewSubtaskTitle] = useState("");
   
-  const { data: listViewColumns, isLoading } = useGetListViewColumns(workspaceId);
+  // Extract projectId from the first task (all tasks in this view belong to the same project)
+  const projectId = data?.[0]?.projectId;
+  
+  console.log('🔍 JiraTableDynamic Debug:', {
+    hasData: !!data,
+    dataLength: data?.length,
+    projectId: projectId,
+    firstTask: data?.[0] ? {
+      id: data[0].id?.slice(0, 8),
+      issueId: data[0].issueId,
+      projectId: data[0].projectId,
+      summary: data[0].summary?.slice(0, 30)
+    } : null
+  });
+  
+  const { data: listViewColumns, isLoading } = useGetListViewColumns(projectId || '');
   const createColumn = useCreateListViewColumn();
   const deleteColumn = useDeleteListViewColumn();
   const updateColumn = useUpdateListViewColumn();
@@ -114,6 +129,13 @@ export function JiraTableDynamic({ data, workspaceId, onAddSubtask }: JiraTableP
   const visibleColumns = (listViewColumns || [])
     .filter(col => col.isVisible)
     .sort((a, b) => a.position - b.position);
+
+  console.log('📊 Columns Debug:', {
+    allColumns: listViewColumns?.length || 0,
+    visibleColumns: visibleColumns.length,
+    columnNames: visibleColumns.map(c => c.displayName),
+    isLoading
+  });
 
 
   // Organize tasks into parent-child hierarchy
@@ -173,12 +195,44 @@ export function JiraTableDynamic({ data, workspaceId, onAddSubtask }: JiraTableP
   const handleAddColumn = () => {
     if (!newColumnName.trim()) return;
     
+    const fieldName = newColumnName.toLowerCase().replace(/\s+/g, '_');
+    
+    // Auto-detect column type based on field name
+    let columnType: 'text' | 'user' | 'date' | 'select' | 'priority' | 'labels' = 'text';
+    
+    // Map common field names to their correct types
+    if (fieldName === 'assignee' || fieldName === 'reporter' || fieldName === 'creator') {
+      columnType = 'user';
+    } else if (fieldName.includes('date') || fieldName === 'due_date' || fieldName === 'created' || fieldName === 'updated') {
+      columnType = 'date';
+    } else if (fieldName === 'priority') {
+      columnType = 'priority';
+    } else if (fieldName === 'labels' || fieldName === 'tags') {
+      columnType = 'labels';
+    } else if (fieldName === 'status' || fieldName === 'issue_type' || fieldName === 'resolution') {
+      columnType = 'select';
+    }
+    
+    // For user columns, ensure we use the correct ID field name
+    let finalFieldName = fieldName;
+    if (columnType === 'user') {
+      if (fieldName === 'assignee') finalFieldName = 'assigneeId';
+      else if (fieldName === 'reporter') finalFieldName = 'reporterId';
+      else if (fieldName === 'creator') finalFieldName = 'creatorId';
+    }
+    
+    // Set appropriate default width based on column type
+    const defaultWidth = columnType === 'user' ? 180 :
+                        columnType === 'labels' ? 200 :
+                        columnType === 'date' ? 140 :
+                        150;
+    
     createColumn.mutate({
-      workspaceId: workspaceId,
-      fieldName: newColumnName.toLowerCase().replace(/\s+/g, '_'),
+      projectId: projectId!,
+      fieldName: finalFieldName,
       displayName: newColumnName,
-      columnType: 'text' as const,
-      width: 150,
+      columnType: columnType,
+      width: defaultWidth,
       isVisible: true,
     }, {
       onSuccess: () => {
@@ -191,7 +245,7 @@ export function JiraTableDynamic({ data, workspaceId, onAddSubtask }: JiraTableP
   const handleToggleColumnVisibility = (column: ListViewColumn) => {
     updateColumn.mutate({
       id: column.id,
-      workspaceId: workspaceId,
+      projectId: projectId!,
       updates: {
         isVisible: !column.isVisible
       }
@@ -203,7 +257,7 @@ export function JiraTableDynamic({ data, workspaceId, onAddSubtask }: JiraTableP
     if (confirm(`Delete column "${column.displayName}"?`)) {
       deleteColumn.mutate({
         id: column.id,
-        workspaceId: workspaceId
+        projectId: projectId!
       });
     }
   };
@@ -314,7 +368,28 @@ export function JiraTableDynamic({ data, workspaceId, onAddSubtask }: JiraTableP
       const labelsString = Array.isArray(currentValue) ? currentValue.join(', ') : '';
       setEditValue(labelsString);
     } else {
-      const currentValue = (task as any)[column.fieldName];
+      // Check standard fields first
+      let currentValue = (task as any)[column.fieldName];
+      
+      // If not found and has customFields, check there (case-insensitive)
+      if (currentValue === undefined && task.customFields && typeof task.customFields === 'object') {
+        const customFieldsObj = task.customFields as { [key: string]: any };
+        currentValue = customFieldsObj[column.displayName] || customFieldsObj[column.fieldName];
+        
+        // Try case-insensitive match
+        if (currentValue === undefined) {
+          const displayNameLower = column.displayName.toLowerCase();
+          const fieldNameLower = column.fieldName.toLowerCase();
+          
+          for (const [key, val] of Object.entries(customFieldsObj)) {
+            if (key.toLowerCase() === displayNameLower || key.toLowerCase() === fieldNameLower) {
+              currentValue = val;
+              break;
+            }
+          }
+        }
+      }
+      
       setEditValue(currentValue || "");
     }
   }, [isAdmin]);
@@ -335,7 +410,22 @@ export function JiraTableDynamic({ data, workspaceId, onAddSubtask }: JiraTableP
     if (isCustomField) {
       // Update custom field in the customFields JSON object
       const customFields = task.customFields && typeof task.customFields === 'object' ? { ...(task.customFields as any) } : {};
-      customFields[fieldName] = value;
+      
+      // Find the actual key in customFields (case-insensitive match)
+      let actualKey = fieldName;
+      const customFieldsObj = task.customFields as { [key: string]: any } | undefined;
+      
+      if (customFieldsObj) {
+        const fieldNameLower = fieldName.toLowerCase();
+        for (const key of Object.keys(customFieldsObj)) {
+          if (key.toLowerCase() === fieldNameLower) {
+            actualKey = key; // Use the original key from CSV
+            break;
+          }
+        }
+      }
+      
+      customFields[actualKey] = value;
       
       updateTask.mutate({
         json: {
@@ -387,10 +477,50 @@ export function JiraTableDynamic({ data, workspaceId, onAddSubtask }: JiraTableP
     // Try to get value from standard fields first, then from customFields
     let value = (task as any)[column.fieldName];
     
+    // Special handling for object fields (assignee, reporter, creator, project)
+    // These should not be rendered directly, they need special rendering
+    const objectFields = ['assignee', 'reporter', 'creator', 'project'];
+    if (objectFields.includes(column.fieldName)) {
+      // For these fields, we should look for the ID field instead
+      const idFieldMap: { [key: string]: string } = {
+        'assignee': 'assigneeId',
+        'reporter': 'reporterId',
+        'creator': 'creatorId',
+        'project': 'projectId'
+      };
+      const idField = idFieldMap[column.fieldName];
+      if (idField) {
+        value = (task as any)[idField];
+      }
+    }
+    
     // If not found in standard fields and task has customFields, check there
     if (value === undefined && task.customFields && typeof task.customFields === 'object') {
       const customFieldsObj = task.customFields as { [key: string]: any };
+      
+      // Try exact matches first (case-sensitive)
       value = customFieldsObj[column.displayName] || customFieldsObj[column.fieldName];
+      
+      // If still not found, try case-insensitive match
+      if (value === undefined) {
+        const displayNameLower = column.displayName.toLowerCase();
+        const fieldNameLower = column.fieldName.toLowerCase();
+        
+        for (const [key, val] of Object.entries(customFieldsObj)) {
+          const keyLower = key.toLowerCase();
+          if (keyLower === displayNameLower || keyLower === fieldNameLower) {
+            value = val;
+            break;
+          }
+        }
+      }
+    }
+    
+    // Final safety check: prevent rendering objects directly
+    // This catches any other cases where an object might slip through
+    if (value && typeof value === 'object' && !Array.isArray(value) && !(value instanceof Date)) {
+      console.warn(`Attempted to render object for column "${column.fieldName}":`, value);
+      value = undefined;
     }
     
     const isEditing = editingCell?.taskId === task.id && editingCell?.fieldName === column.fieldName;
@@ -421,12 +551,13 @@ export function JiraTableDynamic({ data, workspaceId, onAddSubtask }: JiraTableP
 
     switch (column.columnType) {
       case 'user':
-        if (column.fieldName === 'assigneeId') {
+        // Handle all user type columns (assignee, reporter, creator)
+        if (column.fieldName === 'assigneeId' || column.fieldName === 'assignee') {
           if (isEditing) {
             return (
               <Select
                 value={value || ""}
-                onValueChange={(newValue) => handleCellUpdate(task, column.fieldName, newValue)}
+                onValueChange={(newValue) => handleCellUpdate(task, 'assigneeId', newValue)}
                 onOpenChange={(open) => {
                   if (!open) setEditingCell(null);
                 }}
@@ -457,15 +588,57 @@ export function JiraTableDynamic({ data, workspaceId, onAddSubtask }: JiraTableP
           }
           return <span className={`text-xs text-muted-foreground ${cursorClass}`} onClick={onCellClick}>-</span>;
         }
-        if (column.fieldName === 'reporterId' && task.reporter) {
-          return (
-            <div className="flex items-center gap-2">
-              <MemberAvatar name={task.reporter.name} className="size-6" />
-              <span className="text-xs">{task.reporter.name}</span>
-            </div>
-          );
+        
+        if (column.fieldName === 'reporterId' || column.fieldName === 'reporter') {
+          if (isEditing) {
+            return (
+              <Select
+                value={value || ""}
+                onValueChange={(newValue) => handleCellUpdate(task, 'reporterId', newValue)}
+                onOpenChange={(open) => {
+                  if (!open) setEditingCell(null);
+                }}
+              >
+                <SelectTrigger className="h-6 text-xs" onClick={(e) => e.stopPropagation()}>
+                  <SelectValue placeholder="Select reporter" />
+                </SelectTrigger>
+                <SelectContent>
+                  {members?.documents?.map((member: any) => (
+                    <SelectItem key={member.userId} value={member.userId}>
+                      <div className="flex items-center gap-2">
+                        <MemberAvatar name={member.name} className="size-4" />
+                        <span>{member.name}</span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            );
+          }
+          if (task.reporter) {
+            return (
+              <div className={`flex items-center gap-2 ${cursorClass}`} onClick={onCellClick}>
+                <MemberAvatar name={task.reporter.name} className="size-6" />
+                <span className="text-xs">{task.reporter.name}</span>
+              </div>
+            );
+          }
+          return <span className={`text-xs text-muted-foreground ${cursorClass}`} onClick={onCellClick}>-</span>;
         }
-        return <span className="text-xs text-muted-foreground">-</span>;
+        
+        if (column.fieldName === 'creatorId' || column.fieldName === 'creator') {
+          if (task.creator) {
+            return (
+              <div className={`flex items-center gap-2 ${cursorClass}`} onClick={onCellClick}>
+                <MemberAvatar name={task.creator.name} className="size-6" />
+                <span className="text-xs">{task.creator.name}</span>
+              </div>
+            );
+          }
+          return <span className={`text-xs text-muted-foreground ${cursorClass}`} onClick={onCellClick}>-</span>;
+        }
+        
+        return <span className={`text-xs text-muted-foreground ${cursorClass}`} onClick={onCellClick}>-</span>;
 
       case 'date':
         if (isEditing) {
@@ -619,6 +792,42 @@ export function JiraTableDynamic({ data, workspaceId, onAddSubtask }: JiraTableP
 
       case 'text':
       default:
+        // Special handling for user-related fields even if they're marked as 'text' type
+        // This handles columns created before auto-detection was added
+        if (column.fieldName === 'reporterId' || column.fieldName === 'reporter') {
+          if (task.reporter) {
+            return (
+              <div className={`flex items-center gap-2 ${cursorClass}`} onClick={onCellClick}>
+                <MemberAvatar name={task.reporter.name} className="size-6" />
+                <span className="text-xs">{task.reporter.name}</span>
+              </div>
+            );
+          }
+          return <span className={`text-xs text-muted-foreground ${cursorClass}`} onClick={onCellClick}>-</span>;
+        }
+        if (column.fieldName === 'assigneeId' || column.fieldName === 'assignee') {
+          if (task.assignee) {
+            return (
+              <div className={`flex items-center gap-2 ${cursorClass}`} onClick={onCellClick}>
+                <MemberAvatar name={task.assignee.name} className="size-6" />
+                <span className="text-xs">{task.assignee.name}</span>
+              </div>
+            );
+          }
+          return <span className={`text-xs text-muted-foreground ${cursorClass}`} onClick={onCellClick}>-</span>;
+        }
+        if (column.fieldName === 'creatorId' || column.fieldName === 'creator') {
+          if (task.creator) {
+            return (
+              <div className={`flex items-center gap-2 ${cursorClass}`} onClick={onCellClick}>
+                <MemberAvatar name={task.creator.name} className="size-6" />
+                <span className="text-xs">{task.creator.name}</span>
+              </div>
+            );
+          }
+          return <span className={`text-xs text-muted-foreground ${cursorClass}`} onClick={onCellClick}>-</span>;
+        }
+        
         if (column.fieldName === 'issueId') {
           return <span className="text-xs font-medium">{value || '-'}</span>;
         }
@@ -637,6 +846,41 @@ export function JiraTableDynamic({ data, workspaceId, onAddSubtask }: JiraTableP
     return (
       <div className="border rounded-lg overflow-hidden">
         <TaskTableSkeleton rows={10} />
+      </div>
+    );
+  }
+
+  // If no projectId, show message
+  const hasData = data && data.length > 0;
+  if (!projectId && hasData) {
+    return (
+      <div className="border rounded-lg p-8 text-center">
+        <p className="text-sm text-muted-foreground">
+          Unable to display tasks: No project ID found
+        </p>
+      </div>
+    );
+  }
+
+  // If no columns exist for this project, show setup message
+  const hasNoColumns = !listViewColumns || listViewColumns.length === 0;
+  if (!isLoading && hasNoColumns && projectId) {
+    return (
+      <div className="border rounded-lg p-8 text-center space-y-4">
+        <p className="text-sm text-muted-foreground">
+          No columns configured for this project yet.
+        </p>
+        {isAdmin && (
+          <Button
+            onClick={() => setIsAddingColumn(true)}
+            variant="outline"
+            size="sm"
+            className="gap-2"
+          >
+            <Plus className="h-4 w-4" />
+            Add First Column
+          </Button>
+        )}
       </div>
     );
   }
@@ -674,8 +918,8 @@ export function JiraTableDynamic({ data, workspaceId, onAddSubtask }: JiraTableP
         </div>
       )}
       <div className="border rounded-lg overflow-hidden">
-        <div className="overflow-x-auto max-w-full">
-          <div className="min-w-[1200px]">{/* Ensure minimum width for proper layout */}
+        <div className="overflow-x-auto">
+          {/* Responsive table container - automatically scrolls when columns overflow */}
         {/* Header */}
         <div className="bg-muted/50 border-b">
           <div className="flex items-center min-w-max">
@@ -690,15 +934,25 @@ export function JiraTableDynamic({ data, workspaceId, onAddSubtask }: JiraTableP
             </div>
 
             {/* Dynamic columns */}
-            {visibleColumns.map((column) => (
-              <div
-                key={column.id}
-                className="px-4 py-3 text-xs font-medium text-muted-foreground flex items-center gap-2 flex-shrink-0"
-                style={{ width: column.fieldName === 'issueId' ? `${Math.max(column.width, 180)}px` : `${column.width}px` }}
-              >
-                <span>{column.displayName}</span>
-              </div>
-            ))}
+            {visibleColumns.map((column) => {
+              // Calculate responsive width with minimum constraints
+              const minWidth = column.fieldName === 'issueId' ? 180 : 
+                             column.fieldName === 'summary' ? 250 :
+                             column.columnType === 'user' ? 180 :
+                             column.columnType === 'labels' ? 200 :
+                             120;
+              const width = Math.max(column.width, minWidth);
+              
+              return (
+                <div
+                  key={column.id}
+                  className="px-4 py-3 text-xs font-medium text-muted-foreground flex items-center gap-2 flex-shrink-0"
+                  style={{ width: `${width}px`, minWidth: `${minWidth}px` }}
+                >
+                  <span className="truncate">{column.displayName}</span>
+                </div>
+              );
+            })}
 
             {/* Actions column */}
             <div className="w-20 px-4 py-3 text-xs font-medium text-muted-foreground flex-shrink-0">
@@ -840,7 +1094,7 @@ export function JiraTableDynamic({ data, workspaceId, onAddSubtask }: JiraTableP
             </>
           )}
         </div>
-          </div>
+        {/* End overflow container */}
         </div>
       </div>
 
@@ -933,11 +1187,20 @@ const TaskRow = memo(function TaskRow({
         </div>
 
         {/* Dynamic columns */}
-        {visibleColumns.map((column, index) => (
+        {visibleColumns.map((column, index) => {
+          // Calculate responsive width with minimum constraints
+          const minWidth = column.fieldName === 'issueId' ? 180 : 
+                         column.fieldName === 'summary' ? 250 :
+                         column.columnType === 'user' ? 180 :
+                         column.columnType === 'labels' ? 200 :
+                         120;
+          const width = Math.max(column.width, minWidth);
+          
+          return (
           <div
             key={column.id}
-            className="px-4 py-2.5 flex items-center flex-shrink-0"
-            style={{ width: column.fieldName === 'issueId' ? `${Math.max(column.width, 180)}px` : `${column.width}px` }}
+            className="px-4 py-2.5 flex items-center flex-shrink-0 min-w-0"
+            style={{ width: `${width}px`, minWidth: `${minWidth}px`, maxWidth: `${width}px` }}
           >
             {/* Special handling for issueId column with expand/collapse chevron */}
             {index === 0 && column.fieldName === 'issueId' ? (
@@ -981,8 +1244,8 @@ const TaskRow = memo(function TaskRow({
                 </span>
               </div>
             ) : column.fieldName === 'summary' ? (
-              <div className="flex items-center gap-2 w-full min-w-0">
-                <div className="flex-1 min-w-0 truncate">
+              <div className="flex items-center gap-2 w-full min-w-0 overflow-hidden">
+                <div className="flex-1 min-w-0 truncate overflow-hidden">
                   {renderCell(task, column, (e) => onCellClick(task, column, e))}
                 </div>
                 {hoveredTaskId === task.id && isAdmin && (
@@ -999,10 +1262,13 @@ const TaskRow = memo(function TaskRow({
                 )}
               </div>
             ) : (
-              renderCell(task, column, (e) => onCellClick(task, column, e))
+              <div className="w-full min-w-0 overflow-hidden">
+                {renderCell(task, column, (e) => onCellClick(task, column, e))}
+              </div>
             )}
           </div>
-        ))}
+          );
+        })}
 
         {/* Actions */}
         <div className="w-20 px-4 py-2.5 flex items-center gap-2 flex-shrink-0">

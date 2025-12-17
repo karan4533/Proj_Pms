@@ -250,7 +250,7 @@ export const activityLogs = pgTable('activity_logs', {
   // Context
   workspaceId: uuid('workspace_id').references(() => workspaces.id, { onDelete: 'cascade' }),
   projectId: uuid('project_id').references(() => projects.id, { onDelete: 'set null' }),
-  taskId: uuid('task_id').references(() => tasks.id, { onDelete: 'cascade' }),
+  taskId: uuid('task_id').references(() => tasks.id, { onDelete: 'set null' }),
   
   // Change details (JSON for flexibility)
   changes: jsonb('changes').$type<{
@@ -630,7 +630,8 @@ export const boardColumns = pgTable('board_columns', {
 // List View Columns - Dynamic column configuration for the Jira-style list view
 export const listViewColumns = pgTable('list_view_columns', {
   id: uuid('id').primaryKey().defaultRandom(),
-  workspaceId: uuid('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
+  workspaceId: uuid('workspace_id').references(() => workspaces.id, { onDelete: 'cascade' }), // Now nullable for project-specific columns
+  projectId: uuid('project_id').references(() => projects.id, { onDelete: 'cascade' }), // Project-specific columns
   fieldName: text('field_name').notNull(), // The task field (e.g., 'issueId', 'summary', 'status')
   displayName: text('display_name').notNull(), // Display name in header (e.g., 'Key', 'Summary')
   columnType: text('column_type').notNull().default('text'), // text, select, user, date, labels, priority
@@ -644,5 +645,6 @@ export const listViewColumns = pgTable('list_view_columns', {
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 }, (table) => ({
   workspaceIdx: index('list_view_columns_workspace_idx').on(table.workspaceId),
-  positionIdx: index('list_view_columns_position_idx').on(table.workspaceId, table.position),
+  projectIdx: index('list_view_columns_project_idx').on(table.projectId),
+  projectPositionIdx: index('list_view_columns_project_position_idx').on(table.projectId, table.position),
 }));

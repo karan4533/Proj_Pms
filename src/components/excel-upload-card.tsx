@@ -238,18 +238,28 @@ export const ExcelUploadCard = () => {
     const selectedProject = projects?.documents?.find(p => p.id === projectId);
     const workspaceId = selectedProject?.workspaceId; // Use project's workspace ID (can be null/undefined)
 
+    console.log('🚀 Starting upload:', { 
+      fileName: file.name, 
+      projectId, 
+      workspaceId 
+    });
+
     uploadExcel({
       file,
       workspaceId,
       projectId,
     }, {
-      onSuccess: () => {
+      onSuccess: (response) => {
+        console.log('✅ Upload complete:', response);
         setFile(null);
         setProjectId("");
         setAssigneeIds([]);
         if (fileInputRef.current) {
           fileInputRef.current.value = "";
         }
+      },
+      onError: (error) => {
+        console.error('❌ Upload failed:', error);
       },
     });
   };
@@ -314,7 +324,35 @@ export const ExcelUploadCard = () => {
 
         {/* Choose Project Assignees Dropdown */}
         <div className="space-y-2">
-          <Label htmlFor="assignees">Choose Project Assignees (Optional)</Label>
+          <div className="flex items-center justify-between">
+            <Label htmlFor="assignees">Choose Project Assignees (Optional)</Label>
+            <div className="flex gap-2">
+              {assigneeIds.length > 0 && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setAssigneeIds([])}
+                  className="h-8 text-xs"
+                >
+                  Clear All
+                </Button>
+              )}
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  const allMemberIds = members?.documents?.map((m: any) => m.userId) || [];
+                  setAssigneeIds(allMemberIds);
+                }}
+                disabled={assigneeIds.length === members?.documents?.length}
+                className="h-8 text-xs"
+              >
+                Select All
+              </Button>
+            </div>
+          </div>
           <Select onValueChange={handleAddAssignee}>
             <SelectTrigger id="assignees">
               <SelectValue placeholder="Select assignees" />
@@ -349,6 +387,9 @@ export const ExcelUploadCard = () => {
           )}
           <p className="text-sm text-muted-foreground">
             Select employees who will be default assignees for imported tasks
+            {assigneeIds.length > 0 && (
+              <span className="font-medium"> ({assigneeIds.length} selected)</span>
+            )}
           </p>
         </div>
 

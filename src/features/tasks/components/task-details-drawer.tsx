@@ -755,6 +755,79 @@ export function TaskDetailsDrawer({ task, open, onOpenChange }: TaskDetailsDrawe
                     <span className="font-medium">{formatDate(task.created)}</span>
                   </div>
                 </div>
+
+                {/* Custom Fields - Show all additional fields from CSV imports */}
+                {task.customFields && typeof task.customFields === 'object' && Object.keys(task.customFields).length > 0 && (
+                  <>
+                    <Separator className="my-4" />
+                    <div>
+                      <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide block mb-3">
+                        Additional Details
+                      </label>
+                      <div className="space-y-3">
+                        {Object.entries(task.customFields as Record<string, any>).map(([key, value]) => (
+                          <div key={key} className="flex flex-col gap-1">
+                            <span className="text-xs font-medium text-muted-foreground capitalize">
+                              {key.replace(/_/g, ' ')}
+                            </span>
+                            <span className="text-sm">
+                              {value !== null && value !== undefined && value !== '' ? String(value) : '-'}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                {/* Issue Type, Resolution, Estimated/Actual Hours - Standard fields that might be hidden */}
+                {(task.issueType || task.resolution || task.estimatedHours || task.actualHours) && (
+                  <>
+                    <Separator className="my-4" />
+                    <div className="space-y-3">
+                      {task.issueType && (
+                        <div>
+                          <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide block mb-2">
+                            Issue Type
+                          </label>
+                          <Badge variant="outline" className="text-xs px-2 py-1">
+                            {task.issueType}
+                          </Badge>
+                        </div>
+                      )}
+                      
+                      {task.resolution && (
+                        <div>
+                          <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide block mb-2">
+                            Resolution
+                          </label>
+                          <span className="text-sm">{task.resolution}</span>
+                        </div>
+                      )}
+                      
+                      {(task.estimatedHours || task.actualHours) && (
+                        <div className="grid grid-cols-2 gap-4">
+                          {task.estimatedHours && (
+                            <div>
+                              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide block mb-2">
+                                Estimated Hours
+                              </label>
+                              <span className="text-sm font-medium">{task.estimatedHours}h</span>
+                            </div>
+                          )}
+                          {task.actualHours && (
+                            <div>
+                              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide block mb-2">
+                                Actual Hours
+                              </label>
+                              <span className="text-sm font-medium">{task.actualHours}h</span>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
               </div>
             </div>
           </div>

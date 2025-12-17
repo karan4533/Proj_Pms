@@ -2,10 +2,11 @@ import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import { eq, and, desc, or, like, sql, inArray, gte, lte } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
 
 import { sessionMiddleware } from "@/lib/session-middleware";
 import { db } from "@/db";
-import { tasks, projects, users, activityLogs, members, notifications } from "@/db/schema";
+import { tasks, projects, users, activityLogs, members, notifications, listViewColumns } from "@/db/schema";
 import { getMember } from "@/features/members/utils";
 import { MemberRole } from "@/features/members/types";
 import { ActivityAction, EntityType } from "@/features/activity/types";
@@ -343,6 +344,11 @@ const app = new Hono()
       }
 
       // Optimized query with JOINs to fetch all data in one query
+      // Create aliases for multiple user joins (assignee, reporter, creator)
+      const assigneeUser = alias(users, 'assignee_user');
+      const reporterUser = alias(users, 'reporter_user');
+      const creatorUser = alias(users, 'creator_user');
+      
       const taskList = await db
         .select({
           // Task fields
@@ -372,15 +378,26 @@ const app = new Hono()
           estimatedHours: tasks.estimatedHours,
           actualHours: tasks.actualHours,
           position: tasks.position,
+          customFields: tasks.customFields, // ✅ CRITICAL: Include customFields for Sprint, Comments, etc.
           // Assignee fields (nullable)
-          assigneeName: users.name,
-          assigneeEmail: users.email,
-          assigneeImage: users.image,
+          assigneeName: assigneeUser.name,
+          assigneeEmail: assigneeUser.email,
+          assigneeImage: assigneeUser.image,
+          // Reporter fields (nullable)
+          reporterName: reporterUser.name,
+          reporterEmail: reporterUser.email,
+          reporterImage: reporterUser.image,
+          // Creator fields (nullable)
+          creatorName: creatorUser.name,
+          creatorEmail: creatorUser.email,
+          creatorImage: creatorUser.image,
           // Project fields (nullable)
           projectImageUrl: projects.imageUrl,
         })
         .from(tasks)
-        .leftJoin(users, eq(tasks.assigneeId, users.id))
+        .leftJoin(assigneeUser, eq(tasks.assigneeId, assigneeUser.id))
+        .leftJoin(reporterUser, eq(tasks.reporterId, reporterUser.id))
+        .leftJoin(creatorUser, eq(tasks.creatorId, creatorUser.id))
         .leftJoin(projects, eq(tasks.projectId, projects.id))
         .where(and(...conditions))
         .orderBy(desc(tasks.created))
@@ -415,12 +432,27 @@ const app = new Hono()
         estimatedHours: row.estimatedHours,
         actualHours: row.actualHours,
         position: row.position,
+        customFields: row.customFields, // ✅ CRITICAL: Pass customFields to frontend
         // Only include assignee if exists
         assignee: row.assigneeId ? {
           id: row.assigneeId,
           name: row.assigneeName,
           email: row.assigneeEmail,
           image: row.assigneeImage,
+        } : undefined,
+        // Only include reporter if exists
+        reporter: row.reporterId ? {
+          id: row.reporterId,
+          name: row.reporterName,
+          email: row.reporterEmail,
+          image: row.reporterImage,
+        } : undefined,
+        // Only include creator if exists
+        creator: row.creatorId ? {
+          id: row.creatorId,
+          name: row.creatorName,
+          email: row.creatorEmail,
+          image: row.creatorImage,
         } : undefined,
         // Only include project if exists
         project: row.projectId ? {
@@ -814,6 +846,11 @@ const app = new Hono()
     const user = c.get("user");
     const { taskId } = c.req.param();
 
+    // Create aliases for multiple user joins
+    const assigneeUser = alias(users, 'assignee_user');
+    const reporterUser = alias(users, 'reporter_user');
+    const creatorUser = alias(users, 'creator_user');
+
     const [task] = await db
       .select({
         id: tasks.id,
@@ -839,9 +876,19 @@ const app = new Hono()
         actualHours: tasks.actualHours,
         position: tasks.position,
         assignee: {
-          id: users.id,
-          name: users.name,
-          email: users.email,
+          id: assigneeUser.id,
+          name: assigneeUser.name,
+          email: assigneeUser.email,
+        },
+        reporter: {
+          id: reporterUser.id,
+          name: reporterUser.name,
+          email: reporterUser.email,
+        },
+        creator: {
+          id: creatorUser.id,
+          name: creatorUser.name,
+          email: creatorUser.email,
         },
         project: {
           id: projects.id,
@@ -850,7 +897,9 @@ const app = new Hono()
         },
       })
       .from(tasks)
-      .leftJoin(users, eq(tasks.assigneeId, users.id))
+      .leftJoin(assigneeUser, eq(tasks.assigneeId, assigneeUser.id))
+      .leftJoin(reporterUser, eq(tasks.reporterId, reporterUser.id))
+      .leftJoin(creatorUser, eq(tasks.creatorId, creatorUser.id))
       .leftJoin(projects, eq(tasks.projectId, projects.id))
       .where(eq(tasks.id, taskId))
       .limit(1);
@@ -1104,6 +1153,16 @@ const app = new Hono()
         }
 
         console.log('✅ Project found:', project.name);
+        
+        // Get the workspace ID from the project for column creation (if available)
+        // For projects without workspace, we'll skip automatic column creation
+        const projectWorkspaceId = project.workspaceId;
+        
+        if (projectWorkspaceId) {
+          console.log('📊 Project workspace ID:', projectWorkspaceId);
+        } else {
+          console.log('⚠️ Project has no workspace - will skip automatic column creation');
+        }
 
         // Generate a unique batch ID for this upload
         // Choose one of the following formats:
@@ -1187,6 +1246,152 @@ const app = new Hono()
         
         console.log('📋 Column mapping detected:', columnMap);
         
+        // Auto-create missing columns for the project
+        console.log('🔍 Checking for missing columns in project...');
+        
+        // Get existing columns for this project
+        const existingColumns = await db
+          .select()
+          .from(listViewColumns)
+          .where(eq(listViewColumns.projectId, project.id));
+        
+        const existingFieldNames = new Set(
+          existingColumns.map(col => col.fieldName.toLowerCase())
+        );
+        
+        console.log('📊 Existing columns:', Array.from(existingFieldNames));
+        
+        // If no columns exist for this project, create default system columns first
+        if (existingColumns.length === 0) {
+          console.log('🆕 No columns found - creating default system columns for project');
+          
+          const defaultColumns = [
+            { fieldName: 'issueId', displayName: 'Issue ID', columnType: 'text', width: 180, position: 0, isSystem: true },
+            { fieldName: 'summary', displayName: 'Summary', columnType: 'text', width: 300, position: 1, isSystem: true },
+            { fieldName: 'status', displayName: 'Status', columnType: 'select', width: 140, position: 2, isSystem: true },
+            { fieldName: 'priority', displayName: 'Priority', columnType: 'priority', width: 120, position: 3, isSystem: true },
+            { fieldName: 'assigneeId', displayName: 'Assignee', columnType: 'user', width: 180, position: 4, isSystem: true },
+          ];
+          
+          for (const col of defaultColumns) {
+            try {
+              await db.insert(listViewColumns).values({
+                projectId: project.id,
+                fieldName: col.fieldName,
+                displayName: col.displayName,
+                columnType: col.columnType as any,
+                width: col.width,
+                position: col.position,
+                isVisible: true,
+                isSortable: true,
+                isFilterable: true,
+                isSystem: col.isSystem,
+              });
+              existingFieldNames.add(col.fieldName.toLowerCase());
+              console.log(`✅ Created default column: ${col.displayName}`);
+            } catch (error) {
+              console.error(`❌ Failed to create default column ${col.displayName}:`, error);
+            }
+          }
+        }
+          
+          // Define standard fields that don't need column creation
+          const standardFields = [
+            'summary', 'task', 'title', 'description',
+            'summary id', 'summaryid', 'task id',
+            'issue id', 'issueid', 'key', 'id',
+            'issue type', 'issuetype', 'type',
+            'status', 'state',
+            'project name', 'projectname', 'project',
+            'priority',
+            'resolution',
+            'assignee', 'assigned to', 'owner',
+            'reporter', 'reported by',
+            'creator', 'created by', 'author',
+            'created', 'create date', 'created date',
+            'updated', 'update date', 'updated date', 'last updated',
+            'resolved', 'resolve date', 'resolved date', 'resolution date',
+            'due date', 'duedate', 'due',
+            'labels', 'tags', 'label',
+            'details', 'notes',
+            'project_id', 'projectid',
+            'workspace_id', 'workspaceid',
+            'estimated hours', 'estimatedhours', 'estimate', 'estimated time',
+            'actual hours', 'actualhours', 'actual time', 'time spent',
+            'position', 'order', 'rank'
+          ];
+          
+          // Find missing columns that need to be created
+          const missingColumns: Array<{ header: string; fieldName: string; columnType: string; width: number }> = [];
+          
+          headers.forEach(header => {
+            const normalizedHeader = header.trim().toLowerCase();
+            const fieldName = header.trim().toLowerCase().replace(/\s+/g, '_');
+            
+            // Skip if it's a standard field or already exists
+            if (standardFields.includes(normalizedHeader) || existingFieldNames.has(fieldName)) {
+              return;
+            }
+            
+            // Auto-detect column type based on field name
+            let columnType: 'text' | 'user' | 'date' | 'select' | 'priority' | 'labels' = 'text';
+            let width = 150;
+            
+            if (normalizedHeader.includes('date')) {
+              columnType = 'date';
+              width = 140;
+            } else if (normalizedHeader.includes('label') || normalizedHeader.includes('tag')) {
+              columnType = 'labels';
+              width = 200;
+            } else if (normalizedHeader === 'priority') {
+              columnType = 'priority';
+              width = 120;
+            } else if (normalizedHeader === 'status' || normalizedHeader === 'type' || normalizedHeader === 'resolution') {
+              columnType = 'select';
+              width = 140;
+            }
+            
+            missingColumns.push({
+              header: header.trim(),
+              fieldName,
+              columnType,
+              width
+            });
+          });
+          
+          // Create missing columns
+          if (missingColumns.length > 0) {
+            console.log(`📝 Creating ${missingColumns.length} missing columns:`, missingColumns.map(c => c.header));
+            
+            // Get max position for ordering
+            const maxPosition = existingColumns.length > 0 
+              ? Math.max(...existingColumns.map(col => col.position || 0))
+              : 0;
+            
+            for (let i = 0; i < missingColumns.length; i++) {
+              const col = missingColumns[i];
+              try {
+                await db.insert(listViewColumns).values({
+                  projectId: project.id,
+                  fieldName: col.fieldName,
+                  displayName: col.header,
+                  columnType: col.columnType,
+                  width: col.width,
+                  position: maxPosition + i + 1,
+                  isVisible: true,
+                  isSortable: true,
+                  isFilterable: true,
+                  isSystem: false,
+                });
+                console.log(`✅ Created column: ${col.header} (${col.columnType})`);
+              } catch (error) {
+                console.error(`❌ Failed to create column ${col.header}:`, error);
+              }
+            }
+          } else {
+            console.log('✅ No missing columns - all CSV columns already exist in project');
+          }
+        
         // Helper function to get value from row using header name (case-insensitive, flexible matching)
         const getCellValue = (row: string[], headerNames: string[]): string => {
           for (const headerName of headerNames) {
@@ -1221,15 +1426,21 @@ const app = new Hono()
           return c.json({ error: "No valid data rows found in the file" }, 400);
         }
         
-        // Find all user IDs by name or email (assignee, reporter, creator from columns 8, 9, 10)
+        // Find all user IDs by name or email (assignee, reporter, creator) - use dynamic column mapping
         const userNamesSet = new Set();
         dataRows.forEach(row => {
-          if (row[8]) userNamesSet.add(row[8].trim()); // Assignee
-          if (row[9]) userNamesSet.add(row[9].trim()); // Reporter
-          if (row[10]) userNamesSet.add(row[10].trim()); // Creator
+          const assigneeValue = getCellValue(row, ['assignee', 'assigned to', 'owner']);
+          const reporterValue = getCellValue(row, ['reporter', 'reported by']);
+          const creatorValue = getCellValue(row, ['creator', 'created by', 'author']);
+          
+          if (assigneeValue) userNamesSet.add(assigneeValue);
+          if (reporterValue) userNamesSet.add(reporterValue);
+          if (creatorValue) userNamesSet.add(creatorValue);
         });
         const userNames = Array.from(userNamesSet).filter(Boolean) as string[];
         const assigneeMap = new Map();
+        
+        console.log('👥 Looking up users:', userNames);
         
         if (userNames.length > 0) {
           const assignees = await db
@@ -1242,9 +1453,12 @@ const app = new Hono()
               )!
             );
           
+          console.log(`✅ Found ${assignees.length} matching users in database`);
+          
           assignees.forEach(assignee => {
             assigneeMap.set(assignee.name, assignee.id);
             assigneeMap.set(assignee.email, assignee.id);
+            console.log(`   - ${assignee.name} (${assignee.email}) → ${assignee.id}`);
           });
         }
 
@@ -1436,13 +1650,37 @@ const app = new Hono()
           }
           
           // Find assignee ID
-          let assigneeId = assigneeMap.get(assigneeValue) || user.id;
+          let assigneeId = assigneeMap.get(assigneeValue) || null;
+          if (!assigneeId && assigneeValue) {
+            console.log(`⚠️  Assignee not found: "${assigneeValue}" - will use current user`);
+            assigneeId = user.id;
+          } else if (!assigneeValue) {
+            assigneeId = user.id;
+          } else {
+            console.log(`✓ Assignee mapped: "${assigneeValue}" → ${assigneeId}`);
+          }
           
           // Find reporter ID (or use current user)
-          let reporterId = assigneeMap.get(reporterValue) || user.id;
+          let reporterId = assigneeMap.get(reporterValue) || null;
+          if (!reporterId && reporterValue) {
+            console.log(`⚠️  Reporter not found: "${reporterValue}" - will use current user`);
+            reporterId = user.id;
+          } else if (!reporterValue) {
+            reporterId = user.id;
+          } else {
+            console.log(`✓ Reporter mapped: "${reporterValue}" → ${reporterId}`);
+          }
           
           // Find creator ID (or use current user)
-          let creatorId = assigneeMap.get(creatorValue) || user.id;
+          let creatorId = assigneeMap.get(creatorValue) || null;
+          if (!creatorId && creatorValue) {
+            console.log(`⚠️  Creator not found: "${creatorValue}" - will use current user`);
+            creatorId = user.id;
+          } else if (!creatorValue) {
+            creatorId = user.id;
+          } else {
+            console.log(`✓ Creator mapped: "${creatorValue}" → ${creatorId}`);
+          }
           
           // Parse dates
           let parsedDueDate = null;
@@ -1549,15 +1787,30 @@ const app = new Hono()
         // Don't log after this point to avoid response corruption
         const totalCreated = createdTasks.length;
         const batchId = uploadBatchId;
+        const totalRows = dataRows.filter(row => {
+          const summary = getCellValue(row, ['summary', 'task', 'title', 'description']);
+          return summary?.trim();
+        }).length;
+        const skipped = totalRows - totalCreated;
 
-        // Return minimal response to avoid ERR_CONTENT_LENGTH_MISMATCH
+        // Return appropriate message based on results
+        let message: string;
+        if (totalCreated === 0 && skipped > 0) {
+          message = `All ${skipped} tasks already exist (duplicate Issue IDs). Please update existing tasks or change Issue IDs in the CSV.`;
+        } else if (totalCreated > 0 && skipped > 0) {
+          message = `Imported ${totalCreated} tasks. Skipped ${skipped} duplicate tasks.`;
+        } else {
+          message = `Successfully imported ${totalCreated} tasks`;
+        }
+
         return c.json({ 
           data: { 
-            message: `Successfully imported ${totalCreated} tasks`,
+            message,
             uploadBatchId: batchId,
-            count: totalCreated
+            count: totalCreated,
+            skipped
           } 
-        }, 200);
+        }, totalCreated === 0 && skipped > 0 ? 409 : 200); // 409 Conflict for all duplicates
         
       } catch (error) {
         console.error('❌ Excel upload error:', error);
