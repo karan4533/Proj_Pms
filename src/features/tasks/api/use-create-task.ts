@@ -21,14 +21,40 @@ export const useCreateTask = () => {
 
       return await response.json();
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       toast.success("Task created.");
       
-      // Invalidate analytics
-      queryClient.invalidateQueries({ queryKey: ["project-analytics"] });
-      queryClient.invalidateQueries({ queryKey: ["workspace-analytics"] });
+      // Optimized: Only invalidate relevant queries
+      const newTask = data.data;
       
-      // Invalidate and force immediate refetch of task queries
+      // Update specific task list cache instead of full invalidation
+      queryClient.setQueryData(
+        ["tasks", newTask.workspaceId],
+        (old: any) => {
+          if (!old) return old;
+          return {
+            ...old,
+            documents: [newTask, ...old.documents],
+            total: old.total + 1
+          };
+        }
+      );
+      
+      // Only invalidate analytics for affected workspace/project
+      if (newTask.projectId) {
+        queryClient.invalidateQueries({ 
+          queryKey: ["project-analytics", newTask.projectId],
+          exact: true 
+        });
+      }
+      if (newTask.workspaceId) {
+        queryClient.invalidateQueries({ 
+          queryKey: ["workspace-analytics", newTask.workspaceId],
+          exact: true
+        });
+      }
+      
+      // Selective task list invalidation
       queryClient.invalidateQueries({ queryKey: ["tasks"] });
       queryClient.refetchQueries({ 
         queryKey: ["tasks"],

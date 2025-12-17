@@ -28,25 +28,30 @@ export const useDeleteTask = () => {
     onSuccess: ({ data }) => {
       toast.success("Task deleted.");
       
-      // Remove the specific task from cache immediately
+      // Optimized: Remove from cache and update lists directly
       queryClient.removeQueries({ queryKey: ["task", data.id] });
       
-      // Invalidate and force refetch all task-related queries
-      queryClient.invalidateQueries({ queryKey: ["project-analytics"] });
-      queryClient.invalidateQueries({ queryKey: ["workspace-analytics"] });
-      queryClient.invalidateQueries({ queryKey: ["tasks"] });
+      // Optimistically remove from task lists
+      queryClient.setQueriesData(
+        { queryKey: ["tasks"], exact: false },
+        (old: any) => {
+          if (!old?.documents) return old;
+          return {
+            ...old,
+            documents: old.documents.filter((task: any) => task.id !== data.id),
+            total: Math.max(0, old.total - 1)
+          };
+        }
+      );
       
-      // Force immediate refetch - this ensures UI updates right away
-      queryClient.refetchQueries({ 
-        queryKey: ["tasks"],
-        type: "active",
-        exact: false
-      });
-      
-      // Also clear any stale queries
-      queryClient.resetQueries({ 
-        queryKey: ["tasks"],
+      // Invalidate all analytics (we don't have projectId/workspaceId from delete response)
+      queryClient.invalidateQueries({ 
+        queryKey: ["project-analytics"],
         exact: false 
+      });
+      queryClient.invalidateQueries({ 
+        queryKey: ["workspace-analytics"],
+        exact: false
       });
     },
     onError: () => {

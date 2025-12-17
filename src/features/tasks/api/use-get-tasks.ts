@@ -35,8 +35,9 @@ export const useGetTasks = ({
       const startTime = performance.now();
       
       // Build query object, only including defined values
+      // Optimized: Use reasonable default limit for better performance
       const queryParams: Record<string, string> = {
-        limit: limit?.toString() ?? "2000",
+        limit: limit?.toString() ?? "500", // Reduced from 2000 for better initial load
         offset: offset?.toString() ?? "0",
       };
       
@@ -72,10 +73,10 @@ export const useGetTasks = ({
 
       return data;
     },
-    staleTime: 30 * 1000,          // 30 seconds - shorter for fresher data
-    gcTime: 5 * 60 * 1000,         // 5 minutes - keep in cache
-    refetchOnWindowFocus: false,    // Don't refetch on focus
-    refetchOnMount: true,           // Refetch on mount if stale
+    staleTime: 60 * 1000,          // 60 seconds - longer for better UX, less refetching
+    gcTime: 10 * 60 * 1000,        // 10 minutes - keep in cache longer
+    refetchOnWindowFocus: false,    // Don't refetch on focus - better UX
+    refetchOnMount: false,          // Don't refetch on mount - use cache for instant load
     retry: 2,                       // Retry failed requests twice
     retryDelay: 1000,              // Wait 1 second between retries
   });

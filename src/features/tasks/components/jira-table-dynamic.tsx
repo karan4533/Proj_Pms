@@ -20,6 +20,7 @@ import { ProjectAvatar } from "@/features/projects/components/project-avatar";
 import { TaskActions } from "./task-actions";
 import { Task, TaskStatus, TaskPriority } from "../types";
 import { TaskDetailsDrawer } from "./task-details-drawer";
+import { TaskTableSkeleton } from "./task-loading-skeleton";
 import { useGetListViewColumns, ListViewColumn, useCreateListViewColumn, useDeleteListViewColumn, useUpdateListViewColumn } from "../api/use-list-view-columns";
 import { useUpdateTask } from "../api/use-update-task";
 import { useCreateTask } from "../api/use-create-task";
@@ -62,7 +63,7 @@ export function JiraTableDynamic({ data, workspaceId, onAddSubtask }: JiraTableP
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isAddingColumn, setIsAddingColumn] = useState(false);
   const [newColumnName, setNewColumnName] = useState("");
-  const [displayLimit, setDisplayLimit] = useState(50);
+  const [displayLimit, setDisplayLimit] = useState(100); // Increased initial load
   const [selectedTaskIds, setSelectedTaskIds] = useState<Set<string>>(new Set());
   const [editingCell, setEditingCell] = useState<{taskId: string, fieldName: string} | null>(null);
   const [editValue, setEditValue] = useState<string>("");
@@ -634,8 +635,8 @@ export function JiraTableDynamic({ data, workspaceId, onAddSubtask }: JiraTableP
 
   if (isLoading) {
     return (
-      <div className="p-8 text-center text-muted-foreground">
-        Loading columns...
+      <div className="border rounded-lg overflow-hidden">
+        <TaskTableSkeleton rows={10} />
       </div>
     );
   }
@@ -822,13 +823,17 @@ export function JiraTableDynamic({ data, workspaceId, onAddSubtask }: JiraTableP
                 />
               ))}
               {hasMore && (
-                <div className="px-4 py-4 text-center">
+                <div className="px-4 py-4 text-center border-t">
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => setDisplayLimit(prev => prev + 50)}
+                    onClick={() => setDisplayLimit(prev => prev + 100)}
+                    className="gap-2"
                   >
-                    Load More ({parentTasks.length - displayLimit} remaining)
+                    <span>Load More</span>
+                    <Badge variant="secondary" className="ml-2">
+                      {parentTasks.length - displayLimit} remaining
+                    </Badge>
                   </Button>
                 </div>
               )}
