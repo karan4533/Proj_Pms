@@ -31,6 +31,10 @@ import {
 } from "@/components/ui/select";
 import { MemberRole } from "@/features/members/types";
 
+/**
+ * User creation form validation schema
+ * Enforces minimum requirements for new user accounts
+ */
 const createUserSchema = z.object({
   name: z.string().min(1, "Name is required"),
   email: z.string().email("Invalid email address"),
@@ -40,10 +44,24 @@ const createUserSchema = z.object({
 
 type CreateUserValues = z.infer<typeof createUserSchema>;
 
+/**
+ * User Management Client Component
+ * 
+ * Provides admin interface for creating test users with different roles.
+ * Features:
+ * - Quick create buttons with pre-filled credentials
+ * - Manual form with role selection
+ * - Password visibility toggle
+ * - Role-based color coding
+ * 
+ * @access Admin only (enforced in parent page component)
+ */
+
 export const UserManagementClient = () => {
   const queryClient = useQueryClient();
   const [showPassword, setShowPassword] = useState(false);
 
+  // Initialize form with react-hook-form and zod validation
   const form = useForm<CreateUserValues>({
     resolver: zodResolver(createUserSchema),
     defaultValues: {
@@ -54,6 +72,7 @@ export const UserManagementClient = () => {
     },
   });
 
+  // Mutation for creating new user via API
   const createUserMutation = useMutation({
     mutationFn: async (values: CreateUserValues) => {
       const response = await fetch("/api/admin/create-user", {
@@ -83,10 +102,15 @@ export const UserManagementClient = () => {
     },
   });
 
+  // Form submission handler
   const onSubmit = (values: CreateUserValues) => {
     createUserMutation.mutate(values);
   };
 
+  /**
+   * Pre-fills the form with test credentials for a specific role
+   * Pattern: [role]@test.pms / [role]123
+   */
   const handleQuickCreate = (role: MemberRole) => {
     const roleNames: Record<MemberRole, string> = {
       [MemberRole.ADMIN]: "admin",
@@ -109,6 +133,10 @@ export const UserManagementClient = () => {
     });
   };
 
+  /**
+   * Generates color-coded badge for each role type
+   * Used in quick create buttons and role selection
+   */
   const getRoleBadge = (role: MemberRole) => {
     const roleConfig: Record<MemberRole, { icon: string; color: string; label: string }> = {
       [MemberRole.ADMIN]: { icon: "👑", color: "bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300", label: "Admin" },
