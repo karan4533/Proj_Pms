@@ -3,10 +3,11 @@
 import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { UserPlus, Upload } from "lucide-react";
+import { UserPlus, Upload, Settings } from "lucide-react";
 import { CreateProfileForm } from "@/features/profiles/components/create-profile-form";
 import { BulkProfileUpload } from "@/features/profiles/components/bulk-profile-upload";
 import { AdminGuard } from "@/components/admin-guard";
+import { UserManagementClient } from "../admin/user-management/client";
 
 export default function AddProfilePage() {
   const [activeTab, setActiveTab] = useState<string>("individual");
@@ -20,7 +21,7 @@ export default function AddProfilePage() {
           </div>
 
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full max-w-md grid-cols-2">
+            <TabsList className="grid w-full max-w-2xl grid-cols-3">
               <TabsTrigger value="individual" className="flex items-center gap-2">
                 <UserPlus className="size-4" />
                 Individual Profile
@@ -28,6 +29,10 @@ export default function AddProfilePage() {
               <TabsTrigger value="bulk" className="flex items-center gap-2">
                 <Upload className="size-4" />
                 Bulk Import
+              </TabsTrigger>
+              <TabsTrigger value="user-management" className="flex items-center gap-2">
+                <Settings className="size-4" />
+                User Management
               </TabsTrigger>
             </TabsList>
 
@@ -47,6 +52,10 @@ export default function AddProfilePage() {
 
             <TabsContent value="bulk" className="mt-6">
               <BulkProfileUpload />
+            </TabsContent>
+
+            <TabsContent value="user-management" className="mt-6">
+              <UserManagementClient />
             </TabsContent>
           </Tabs>
         </div>

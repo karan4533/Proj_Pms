@@ -15,8 +15,7 @@
     "migrate:roles": "tsx scripts/migrate-member-roles.ts",
     "migrate:roles:preview": "tsx scripts/migrate-member-roles.ts --dry-run",
     "manage:roles": "tsx scripts/manage-member-roles.ts",
-    "create:role-users": "tsx scripts/create-role-based-users.ts",
-    "add:users-to-workspaces": "tsx scripts/add-users-to-workspaces.ts"
+    "create:role-users": "tsx scripts/create-role-based-users.ts",    "manage:test-users": "tsx scripts/manage-test-users.ts",    "add:users-to-workspaces": "tsx scripts/add-users-to-workspaces.ts"
   },
   "dependencies": {
     "@auth/drizzle-adapter": "^1.11.1",

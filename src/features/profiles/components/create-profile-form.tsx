@@ -264,7 +264,7 @@ export const CreateProfileForm = () => {
                     <SelectItem value="senior_manager">Senior Manager</SelectItem>
                     <SelectItem value="director">Director</SelectItem>
                     {customDesignations && customDesignations.length > 0 && customDesignations.map((designation) => (
-                      <SelectItem key={designation.id} value={designation.name}>
+                      <SelectItem key={`custom-${designation.id}`} value={designation.name}>
                         {designation.name}
                       </SelectItem>
                     ))}
