@@ -8,6 +8,7 @@ import {
 
 import { KanbanCard } from "./kanban-card";
 import { KanbanColumnHeader } from "./kanban-column-header";
+import { TaskDetailsDrawer } from "./task-details-drawer";
 
 import { Task, TaskStatus } from "../types";
 
@@ -35,6 +36,9 @@ const INITIAL_RENDER_COUNT = 20;
 const RENDER_BUFFER = 10;
 
 export const BoardKanban = ({ data, onChange }: BoardKanbanProps) => {
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  
   // Track visible range per column for windowing
   const [visibleRanges, setVisibleRanges] = useState<Record<TaskStatus, number>>({
     [TaskStatus.BACKLOG]: INITIAL_RENDER_COUNT,
@@ -249,7 +253,13 @@ export const BoardKanban = ({ data, onChange }: BoardKanbanProps) => {
                             {...provided.draggableProps}
                             {...provided.dragHandleProps}
                           >
-                            <KanbanCard task={task} />
+                            <KanbanCard 
+                              task={task} 
+                              onClick={() => {
+                                setSelectedTask(task);
+                                setIsDrawerOpen(true);
+                              }}
+                            />
                           </div>
                         )}
                       </Draggable>
@@ -267,6 +277,10 @@ export const BoardKanban = ({ data, onChange }: BoardKanbanProps) => {
           );
         })}
       </div>
-    </DragDropContext>
+      <TaskDetailsDrawer
+        task={selectedTask}
+        open={isDrawerOpen}
+        onOpenChange={setIsDrawerOpen}
+      />    </DragDropContext>
   );
 };

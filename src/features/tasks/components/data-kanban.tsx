@@ -12,6 +12,7 @@ import { KanbanCard } from "./kanban-card";
 import { KanbanColumnHeader } from "./kanban-column-header";
 import { AddColumnButton } from "./add-column-button";
 import { TaskOverviewForm } from "./task-overview-form";
+import { TaskDetailsDrawer } from "./task-details-drawer";
 import { usePermissionContext } from "@/components/providers/permission-provider";
 import { MemberRole } from "@/features/members/types";
 import { useWorkspaceId } from "@/features/workspaces/hooks/use-workspace-id";
@@ -50,6 +51,9 @@ export const DataKanban = ({ data, onChange }: DataKanbanProps) => {
   const { role } = usePermissionContext();
   const isAdmin = role === MemberRole.ADMIN || role === MemberRole.PROJECT_MANAGER;
   const workspaceId = useWorkspaceId();
+  
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   
   // Fetch workflow to get dynamic columns
   const { data: workflow } = useGetDefaultWorkflow(workspaceId);
@@ -415,7 +419,13 @@ export const DataKanban = ({ data, onChange }: DataKanbanProps) => {
                             ref={provided.innerRef}
                             className={snapshot.isDragging ? "kanban-card-dragging" : ""}
                           >
-                            <KanbanCard task={task} />
+                            <KanbanCard 
+                              task={task} 
+                              onClick={() => {
+                                setSelectedTask(task);
+                                setIsDrawerOpen(true);
+                              }}
+                            />
                           </div>
                         )}
                       </Draggable>
@@ -457,6 +467,12 @@ export const DataKanban = ({ data, onChange }: DataKanbanProps) => {
           onSuccess={handleOverviewSuccess}
         />
       )}
+
+      <TaskDetailsDrawer
+        task={selectedTask}
+        open={isDrawerOpen}
+        onOpenChange={setIsDrawerOpen}
+      />
     </DragDropContext>
   );
 };

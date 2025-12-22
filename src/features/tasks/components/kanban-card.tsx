@@ -1,4 +1,4 @@
-import { MoreHorizontalIcon, TagIcon, UserIcon, CalendarIcon, Clock, CheckCircleIcon } from "lucide-react";
+import { TagIcon, UserIcon, CalendarIcon, Clock, CheckCircleIcon } from "lucide-react";
 import { memo } from "react";
 
 import { DottedSeparator } from "@/components/dotted-separator";
@@ -7,16 +7,16 @@ import { Badge } from "@/components/ui/badge";
 import { MemberAvatar } from "@/features/members/components/member-avatar";
 import { ProjectAvatar } from "@/features/projects/components/project-avatar";
 
-import { TaskActions } from "./task-actions";
 import { TaskDate } from "./task-date";
 
 import { Task } from "../types";
 
 interface KanbanCardProps {
   task: Task;
+  onClick?: () => void;
 }
 
-const KanbanCardComponent = ({ task }: KanbanCardProps) => {
+const KanbanCardComponent = ({ task, onClick }: KanbanCardProps) => {
   // Helper function to format date and time
   const formatDateTime = (dateString: string | undefined) => {
     if (!dateString) return '';
@@ -84,8 +84,8 @@ const KanbanCardComponent = ({ task }: KanbanCardProps) => {
   };
 
   return (
-    <div className={getCardClassName()}>
-      {/* Header with Issue ID, Priority, and Actions */}
+    <div className={getCardClassName()} onClick={onClick} style={{ cursor: onClick ? 'pointer' : 'default' }}>
+      {/* Header with Issue ID and Priority */}
       <div className="flex items-start justify-between gap-x-2">
         <div className="flex items-center gap-x-2">
           <Badge variant="outline" className="text-xs font-mono px-1.5 py-0.5">
@@ -98,9 +98,6 @@ const KanbanCardComponent = ({ task }: KanbanCardProps) => {
             {task.priority}
           </Badge>
         </div>
-        <TaskActions id={task.id} projectId={task.projectId || ""} assigneeId={task.assigneeId}>
-          <MoreHorizontalIcon className="size-[18px] stroke-1 shrink-0 text-muted-foreground hover:opacity-75 transition" />
-        </TaskActions>
       </div>
 
       {/* Project Name Badge */}

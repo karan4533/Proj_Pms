@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
-import { Task, TaskStatus, TaskPriority } from "../types";
+import { Task, TaskStatus, TaskPriority, IssueType, Resolution } from "../types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -40,6 +40,14 @@ export function TaskDetailsDrawer({ task, open, onOpenChange }: TaskDetailsDrawe
   const [dueDateValue, setDueDateValue] = useState("");
   const [isEditingLabels, setIsEditingLabels] = useState(false);
   const [labelsValue, setLabelsValue] = useState("");
+  const [isEditingEstimatedHours, setIsEditingEstimatedHours] = useState(false);
+  const [estimatedHoursValue, setEstimatedHoursValue] = useState("");
+  const [isEditingActualHours, setIsEditingActualHours] = useState(false);
+  const [actualHoursValue, setActualHoursValue] = useState("");
+  const [isEditingSummary, setIsEditingSummary] = useState(false);
+  const [summaryValue, setSummaryValue] = useState("");
+  const [editingCustomField, setEditingCustomField] = useState<string | null>(null);
+  const [customFieldValue, setCustomFieldValue] = useState("");
 
   const createTask = useCreateTask();
   const updateTask = useUpdateTask();
@@ -168,9 +176,33 @@ export function TaskDetailsDrawer({ task, open, onOpenChange }: TaskDetailsDrawe
               {/* Issue Header with Type Badge */}
               <div className="flex items-start gap-3 mb-6">
                 {task.issueType && (
-                  <Badge variant="outline" className="mt-1 text-xs font-medium">
-                    {task.issueType}
-                  </Badge>
+                  isAdmin ? (
+                    <Select
+                      value={task.issueType}
+                      onValueChange={(value) => {
+                        updateTask.mutate({
+                          json: { issueType: value as IssueType },
+                          param: { taskId: task.id }
+                        });
+                      }}
+                    >
+                      <SelectTrigger className="w-[140px] h-7 text-xs font-medium mt-1">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value={IssueType.TASK}>{IssueType.TASK}</SelectItem>
+                        <SelectItem value={IssueType.BUG}>{IssueType.BUG}</SelectItem>
+                        <SelectItem value={IssueType.EPIC}>{IssueType.EPIC}</SelectItem>
+                        <SelectItem value={IssueType.STORY}>{IssueType.STORY}</SelectItem>
+                        <SelectItem value={IssueType.SUB_TASK}>{IssueType.SUB_TASK}</SelectItem>
+                        <SelectItem value={IssueType.IMPROVEMENT}>{IssueType.IMPROVEMENT}</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <Badge variant="outline" className="mt-1 text-xs font-medium">
+                      {task.issueType}
+                    </Badge>
+                  )
                 )}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-2">
@@ -178,9 +210,50 @@ export function TaskDetailsDrawer({ task, open, onOpenChange }: TaskDetailsDrawe
                       {task.issueId}
                     </span>
                   </div>
-                  <h1 className="text-xl font-semibold text-foreground leading-tight">
-                    {task.summary}
-                  </h1>
+                  {isAdmin && isEditingSummary ? (
+                    <div className="space-y-2">
+                      <Input
+                        value={summaryValue}
+                        onChange={(e) => setSummaryValue(e.target.value)}
+                        className="text-lg font-semibold h-auto py-2"
+                        autoFocus
+                        onBlur={() => {
+                          if (summaryValue.trim() && summaryValue !== task.summary) {
+                            updateTask.mutate({
+                              json: { summary: summaryValue.trim() },
+                              param: { taskId: task.id }
+                            }, {
+                              onSuccess: () => setIsEditingSummary(false)
+                            });
+                          } else {
+                            setIsEditingSummary(false);
+                          }
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.currentTarget.blur();
+                          } else if (e.key === 'Escape') {
+                            setIsEditingSummary(false);
+                          }
+                        }}
+                      />
+                    </div>
+                  ) : (
+                    <h1 
+                      className={cn(
+                        "text-xl font-semibold text-foreground leading-tight",
+                        isAdmin && "cursor-pointer hover:text-primary transition-colors"
+                      )}
+                      onClick={() => {
+                        if (isAdmin) {
+                          setSummaryValue(task.summary);
+                          setIsEditingSummary(true);
+                        }
+                      }}
+                    >
+                      {task.summary}
+                    </h1>
+                  )}
                 </div>
               </div>
 
@@ -856,9 +929,52 @@ export function TaskDetailsDrawer({ task, open, onOpenChange }: TaskDetailsDrawe
                             <span className="text-xs font-medium text-muted-foreground capitalize">
                               {key.replace(/_/g, ' ')}
                             </span>
-                            <span className="text-sm">
-                              {value !== null && value !== undefined && value !== '' ? String(value) : '-'}
-                            </span>
+                            {isAdmin && editingCustomField === key ? (
+                              <div className="flex gap-2">
+                                <Input
+                                  value={customFieldValue}
+                                  onChange={(e) => setCustomFieldValue(e.target.value)}
+                                  className="h-8 text-sm"
+                                  autoFocus
+                                  onBlur={() => {
+                                    const customFields = { ...(task.customFields as Record<string, any>) };
+                                    customFields[key] = customFieldValue;
+                                    updateTask.mutate({
+                                      json: { customFields },
+                                      param: { taskId: task.id }
+                                    }, {
+                                      onSuccess: () => {
+                                        setEditingCustomField(null);
+                                        setCustomFieldValue("");
+                                      }
+                                    });
+                                  }}
+                                  onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
+                                    if (e.key === 'Enter') {
+                                      e.currentTarget.blur();
+                                    } else if (e.key === 'Escape') {
+                                      setEditingCustomField(null);
+                                      setCustomFieldValue("");
+                                    }
+                                  }}
+                                />
+                              </div>
+                            ) : (
+                              <span 
+                                className={cn(
+                                  "text-sm p-2 rounded",
+                                  isAdmin && "cursor-pointer hover:bg-muted/50"
+                                )}
+                                onClick={() => {
+                                  if (isAdmin) {
+                                    setEditingCustomField(key);
+                                    setCustomFieldValue(value !== null && value !== undefined && value !== '' ? String(value) : '');
+                                  }
+                                }}
+                              >
+                                {value !== null && value !== undefined && value !== '' ? String(value) : '-'}
+                              </span>
+                            )}
                           </div>
                         ))}
                       </div>
@@ -866,54 +982,160 @@ export function TaskDetailsDrawer({ task, open, onOpenChange }: TaskDetailsDrawe
                   </>
                 )}
 
-                {/* Issue Type, Resolution, Estimated/Actual Hours - Standard fields that might be hidden */}
-                {(task.issueType || task.resolution || task.estimatedHours || task.actualHours) && (
-                  <>
-                    <Separator className="my-4" />
-                    <div className="space-y-3">
-                      {task.issueType && (
-                        <div>
-                          <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide block mb-2">
-                            Issue Type
-                          </label>
-                          <Badge variant="outline" className="text-xs px-2 py-1">
-                            {task.issueType}
-                          </Badge>
-                        </div>
-                      )}
-                      
-                      {task.resolution && (
-                        <div>
-                          <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide block mb-2">
-                            Resolution
-                          </label>
-                          <span className="text-sm">{task.resolution}</span>
-                        </div>
-                      )}
-                      
-                      {(task.estimatedHours || task.actualHours) && (
-                        <div className="grid grid-cols-2 gap-4">
-                          {task.estimatedHours && (
-                            <div>
-                              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide block mb-2">
-                                Estimated Hours
-                              </label>
-                              <span className="text-sm font-medium">{task.estimatedHours}h</span>
-                            </div>
+                <Separator className="my-4" />
+                
+                {/* Resolution */}
+                <div className="bg-card rounded-lg p-4 border shadow-sm">
+                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide block mb-3">
+                    Resolution
+                  </label>
+                  {isAdmin ? (
+                    <Select
+                      value={task.resolution || "none"}
+                      onValueChange={(value) => {
+                        updateTask.mutate({
+                          json: { resolution: value === "none" ? undefined : (value as Resolution) },
+                          param: { taskId: task.id }
+                        });
+                      }}
+                    >
+                      <SelectTrigger className="h-10 text-sm font-medium border-0 bg-muted/50 hover:bg-muted">
+                        <SelectValue>
+                          {task.resolution ? (
+                            <Badge variant="outline" className="text-xs">{task.resolution}</Badge>
+                          ) : (
+                            <span className="text-muted-foreground">None</span>
                           )}
-                          {task.actualHours && (
-                            <div>
-                              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide block mb-2">
-                                Actual Hours
-                              </label>
-                              <span className="text-sm font-medium">{task.actualHours}h</span>
-                            </div>
-                          )}
-                        </div>
-                      )}
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">None</SelectItem>
+                        <SelectItem value={Resolution.DONE}>{Resolution.DONE}</SelectItem>
+                        <SelectItem value={Resolution.FIXED}>{Resolution.FIXED}</SelectItem>
+                        <SelectItem value={Resolution.WONT_FIX}>{Resolution.WONT_FIX}</SelectItem>
+                        <SelectItem value={Resolution.DUPLICATE}>{Resolution.DUPLICATE}</SelectItem>
+                        <SelectItem value={Resolution.CANNOT_REPRODUCE}>{Resolution.CANNOT_REPRODUCE}</SelectItem>
+                        <SelectItem value={Resolution.INCOMPLETE}>{Resolution.INCOMPLETE}</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    task.resolution ? (
+                      <Badge variant="outline" className="text-xs px-2 py-1">{task.resolution}</Badge>
+                    ) : (
+                      <span className="text-sm text-muted-foreground">None</span>
+                    )
+                  )}
+                </div>
+
+                {/* Estimated Hours */}
+                <div className="bg-card rounded-lg p-4 border shadow-sm">
+                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide block mb-3 flex items-center gap-1.5">
+                    <Clock className="h-3.5 w-3.5" />
+                    Estimated Hours
+                  </label>
+                  {isAdmin && isEditingEstimatedHours ? (
+                    <div className="flex gap-2">
+                      <Input
+                        type="number"
+                        min="0"
+                        step="0.5"
+                        value={estimatedHoursValue}
+                        onChange={(e) => setEstimatedHoursValue(e.target.value)}
+                        className="h-10 text-sm border-0 bg-muted/50"
+                        placeholder="Enter hours"
+                        autoFocus
+                        onBlur={() => {
+                          const hours = parseFloat(estimatedHoursValue);
+                          if (!isNaN(hours) && hours >= 0) {
+                            updateTask.mutate({
+                              json: { estimatedHours: hours },
+                              param: { taskId: task.id }
+                            }, {
+                              onSuccess: () => setIsEditingEstimatedHours(false)
+                            });
+                          } else {
+                            setIsEditingEstimatedHours(false);
+                          }
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.currentTarget.blur();
+                          }
+                        }}
+                      />
                     </div>
-                  </>
-                )}
+                  ) : (
+                    <div
+                      className={cn(
+                        "flex items-center gap-3 text-sm p-2.5 rounded-md border-0",
+                        isAdmin && "cursor-pointer hover:bg-muted/50 bg-muted/20"
+                      )}
+                      onClick={() => {
+                        if (isAdmin) {
+                          setEstimatedHoursValue(task.estimatedHours?.toString() || "");
+                          setIsEditingEstimatedHours(true);
+                        }
+                      }}
+                    >
+                      <span className="font-medium">{task.estimatedHours ? `${task.estimatedHours}h` : "Not set"}</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Actual Hours */}
+                <div className="bg-card rounded-lg p-4 border shadow-sm">
+                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide block mb-3 flex items-center gap-1.5">
+                    <Clock className="h-3.5 w-3.5" />
+                    Actual Hours
+                  </label>
+                  {isAdmin && isEditingActualHours ? (
+                    <div className="flex gap-2">
+                      <Input
+                        type="number"
+                        min="0"
+                        step="0.5"
+                        value={actualHoursValue}
+                        onChange={(e) => setActualHoursValue(e.target.value)}
+                        className="h-10 text-sm border-0 bg-muted/50"
+                        placeholder="Enter hours"
+                        autoFocus
+                        onBlur={() => {
+                          const hours = parseFloat(actualHoursValue);
+                          if (!isNaN(hours) && hours >= 0) {
+                            updateTask.mutate({
+                              json: { actualHours: hours },
+                              param: { taskId: task.id }
+                            }, {
+                              onSuccess: () => setIsEditingActualHours(false)
+                            });
+                          } else {
+                            setIsEditingActualHours(false);
+                          }
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.currentTarget.blur();
+                          }
+                        }}
+                      />
+                    </div>
+                  ) : (
+                    <div
+                      className={cn(
+                        "flex items-center gap-3 text-sm p-2.5 rounded-md border-0",
+                        isAdmin && "cursor-pointer hover:bg-muted/50 bg-muted/20"
+                      )}
+                      onClick={() => {
+                        if (isAdmin) {
+                          setActualHoursValue(task.actualHours?.toString() || "0");
+                          setIsEditingActualHours(true);
+                        }
+                      }}
+                    >
+                      <span className="font-medium">{task.actualHours ? `${task.actualHours}h` : "0h"}</span>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </div>
