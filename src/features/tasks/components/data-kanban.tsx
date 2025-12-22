@@ -385,7 +385,7 @@ export const DataKanban = ({ data, onChange }: DataKanbanProps) => {
       </div>
       
       <div className="flex overflow-x-auto kanban-horizontal-scroll kanban-board-container">
-        {boards.map((board) => {
+        {boards.map((board: TaskStatus) => {
           const allColumnTasks = tasks[board];
           const visibleCount = visibleTasks[board];
           
@@ -410,7 +410,7 @@ export const DataKanban = ({ data, onChange }: DataKanbanProps) => {
                     className="min-h-[200px] py-1.5 max-h-[calc(100vh-250px)] overflow-y-auto kanban-scroll-container"
                   >
                     {/* Render visible tasks only (Jira-style pagination) */}
-                    {columnTasks.map((task, index) => (
+                    {columnTasks.map((task: Task, index: number) => (
                       <Draggable key={task.id} draggableId={task.id} index={index}>
                         {(provided, snapshot) => (
                           <div
