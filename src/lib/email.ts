@@ -61,11 +61,12 @@ class ConsoleEmailService implements EmailService {
 export const createEmailService = (): EmailService => {
   const resendApiKey = process.env.RESEND_API_KEY;
   
-  if (resendApiKey && process.env.NODE_ENV === 'production') {
+  // Use Resend if API key is provided (works in both dev and production)
+  if (resendApiKey) {
     return new ResendEmailService(resendApiKey);
   }
   
-  // Use console service for development or when no API key is provided
+  // Use console service for development when no API key is provided
   return new ConsoleEmailService();
 };
 

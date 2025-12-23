@@ -6,6 +6,8 @@ import { clientInvitations, members, projects, users } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
 import { randomBytes } from "crypto";
 import { sessionMiddleware } from "@/lib/session-middleware";
+import { createEmailService } from "@/lib/email";
+import { createClientInvitationEmailTemplate, createClientInvitationEmailSubject } from "@/lib/email-templates";
 
 const app = new Hono()
   // Send client invitation
@@ -151,8 +153,32 @@ const app = new Hono()
 
         console.log("Invitation created:", invitation.id);
 
-        // TODO: Send email with invitation link
+        // Generate invitation link
         const inviteLink = `${process.env.NEXT_PUBLIC_APP_URL}/client/accept?token=${token}`;
+
+        // Send email notification
+        try {
+          const emailService = createEmailService();
+          
+          await emailService.sendEmail({
+            to: email,
+            subject: createClientInvitationEmailSubject(project.name),
+            html: createClientInvitationEmailTemplate({
+              clientEmail: email,
+              projectName: project.name,
+              inviterName: user.name || user.email,
+              inviteLink,
+              expiresAt: expiresAt.toISOString(),
+            }),
+            from: process.env.EMAIL_FROM || 'PMS Team <noreply@yourdomain.com>',
+          });
+          
+          console.log(`✅ Invitation email sent to ${email}`);
+        } catch (emailError) {
+          // Log error but don't fail the invitation creation
+          console.error("⚠️ Failed to send invitation email:", emailError);
+          console.log("Invitation link (copy manually):", inviteLink);
+        }
 
         return c.json({
           data: {

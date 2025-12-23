@@ -53,7 +53,7 @@ const PRIORITY_COLORS = {
 export const JiraDashboard = () => {
   const { data: isAdmin } = useIsGlobalAdmin();
   const { canManageUsers } = usePermissionContext();
-  const [selectedProject, setSelectedProject] = useState<string>("");
+  const [selectedProject, setSelectedProject] = useState<string>("all");
   const [isInviteClientModalOpen, setIsInviteClientModalOpen] = useState(false);
   
   // Fetch real activity logs from database
@@ -76,13 +76,13 @@ export const JiraDashboard = () => {
   const projects = (projectsData?.documents || []) as any[];
   const members = (membersData?.documents || []) as any[];
 
-  // Auto-select first project when projects load
+  // Auto-select first project for CLIENT users only
   useEffect(() => {
-    if (projects.length > 0 && !selectedProject) {
+    if (projects.length > 0 && !selectedProject && isAdmin === false) {
       setSelectedProject(projects[0].id);
-      console.log("Auto-selected first project:", projects[0].name);
+      console.log("Auto-selected first project for CLIENT user:", projects[0].name);
     }
-  }, [projects, selectedProject]);
+  }, [projects, selectedProject, isAdmin]);
 
   // Debug: Log task statuses to see what values we're getting
   if (allTasks.length > 0 && allTasks.length <= 5) {
@@ -109,8 +109,8 @@ export const JiraDashboard = () => {
     
     console.log("Starting filter with", filtered.length, "tasks");
     
-    // Always filter by project - no 'all projects' option
-    if (selectedProject) {
+    // Filter by project (allow 'all' for admin users)
+    if (selectedProject && selectedProject !== "all") {
       const beforeCount = filtered.length;
       filtered = filtered.filter((task) => task.projectId === selectedProject);
       console.log(`Project filter: ${beforeCount} -> ${filtered.length} (looking for projectId: ${selectedProject})`);
@@ -347,6 +347,7 @@ export const JiraDashboard = () => {
                   <SelectValue placeholder="Select Project" />
                 </SelectTrigger>
                 <SelectContent>
+                  {isAdmin && <SelectItem value="all">All Projects</SelectItem>}
                   {projects.map((project: any) => (
                     <SelectItem key={project.id} value={project.id}>
                       {project.name}
@@ -436,7 +437,7 @@ export const JiraDashboard = () => {
             )}
           </div>
           <div className="flex items-center justify-between mt-3">
-            {(selectedStatus !== "all" || selectedAssignee !== "all" || selectedMonth !== "all" || selectedWeek !== "all" || selectedDate !== "all") ? (
+            {(selectedProject !== "all" || selectedStatus !== "all" || selectedAssignee !== "all" || selectedMonth !== "all" || selectedWeek !== "all" || selectedDate !== "all") ? (
               <div className="flex items-center gap-2">
                 <Badge variant="secondary" className="text-xs">
                   Showing {tasks.length} filtered tasks
@@ -445,6 +446,7 @@ export const JiraDashboard = () => {
                   variant="ghost" 
                   size="sm"
                   onClick={() => {
+                    if (isAdmin) setSelectedProject("all");
                     setSelectedStatus("all");
                     setSelectedAssignee("all");
                     setSelectedMonth("all");
