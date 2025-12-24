@@ -16,6 +16,7 @@ const client = postgres(process.env.DATABASE_URL, {
   prepare: false,   // Disable prepared statements for better performance with dynamic queries
   max_lifetime: 60 * 5, // Max connection lifetime: 5 minutes (prevents stale connections)
   onnotice: () => {}, // Suppress notices
+  ssl: process.env.NODE_ENV === 'production' ? 'require' : false, // Require SSL in production
 });
 
 // Create and export the database instance
