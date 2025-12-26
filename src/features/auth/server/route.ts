@@ -21,53 +21,81 @@ const updateProfileSchema = z.object({
 });
 
 const app = new Hono()
+  .get("/health", async (c) => {
+    try {
+      // Test database connection
+      const result = await db.select().from(users).limit(1);
+      return c.json({ 
+        status: "ok", 
+        database: "connected",
+        users_count: result.length > 0 ? "has data" : "empty",
+        timestamp: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error('Health check error:', error);
+      return c.json({ 
+        status: "error",
+        database: "disconnected",
+        error: error instanceof Error ? error.message : 'Unknown error',
+        timestamp: new Date().toISOString()
+      }, 500);
+    }
+  })
   .get("/current", sessionMiddleware, (c) => {
     const user = c.get("user");
 
     return c.json({ data: user });
   })
   .post("/login", zValidator("json", loginSchema), async (c) => {
-    const { email, password } = c.req.valid("json");
+    try {
+      const { email, password } = c.req.valid("json");
 
-    // Find user by email
-    const [user] = await db
-      .select()
-      .from(users)
-      .where(eq(users.email, email))
-      .limit(1);
+      // Find user by email
+      const [user] = await db
+        .select()
+        .from(users)
+        .where(eq(users.email, email))
+        .limit(1);
 
-    if (!user || !user.password) {
-      return c.json({ error: "Invalid email or password" }, 401);
+      if (!user || !user.password) {
+        return c.json({ error: "Invalid email or password" }, 401);
+      }
+
+      // Verify password
+      const isPasswordValid = await compare(password, user.password);
+
+      if (!isPasswordValid) {
+        return c.json({ error: "Invalid email or password" }, 401);
+      }
+
+      // Create session
+      const sessionToken = randomBytes(32).toString("hex");
+      const expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + 30); // 30 days
+
+      await db.insert(sessions).values({
+        sessionToken,
+        userId: user.id,
+        expires: expiresAt,
+      });
+
+      const isProd = process.env.NODE_ENV === 'production';
+      setCookie(c, AUTH_COOKIE, sessionToken, {
+        path: "/",
+        httpOnly: true,
+        secure: isProd, // Only secure in production
+        sameSite: isProd ? "strict" : "lax", // Lax for localhost
+        maxAge: 60 * 60 * 24 * 30,
+      });
+
+      return c.json({ success: true });
+    } catch (error) {
+      console.error('Login error:', error);
+      return c.json({ 
+        error: "An error occurred during login. Please try again.",
+        details: error instanceof Error ? error.message : 'Unknown error'
+      }, 500);
     }
-
-    // Verify password
-    const isPasswordValid = await compare(password, user.password);
-
-    if (!isPasswordValid) {
-      return c.json({ error: "Invalid email or password" }, 401);
-    }
-
-    // Create session
-    const sessionToken = randomBytes(32).toString("hex");
-    const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + 30); // 30 days
-
-    await db.insert(sessions).values({
-      sessionToken,
-      userId: user.id,
-      expires: expiresAt,
-    });
-
-    const isProd = process.env.NODE_ENV === 'production';
-    setCookie(c, AUTH_COOKIE, sessionToken, {
-      path: "/",
-      httpOnly: true,
-      secure: isProd, // Only secure in production
-      sameSite: isProd ? "strict" : "lax", // Lax for localhost
-      maxAge: 60 * 60 * 24 * 30,
-    });
-
-    return c.json({ success: true });
   })
   .post("/register", zValidator("json", registerSchema), async (c) => {
     const { name, email, password } = c.req.valid("json");
