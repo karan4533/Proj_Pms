@@ -24,6 +24,16 @@ import clients from "@/features/clients/server/route";
 
 const app = new Hono().basePath("/api");
 
+// Root health check endpoint
+app.get("/health", (c) => {
+  return c.json({ 
+    status: "ok", 
+    message: "API is running",
+    timestamp: new Date().toISOString(),
+    env: process.env.NODE_ENV
+  });
+});
+
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 const routes = app
   .route("/auth", auth)
