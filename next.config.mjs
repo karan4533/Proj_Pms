@@ -4,6 +4,13 @@ const nextConfig = {
     // Increase file upload limits for CSV task import
     serverComponentsExternalPackages: [],
   },
+  // Increase API body size limit for bulk uploads
+  api: {
+    bodyParser: {
+      sizeLimit: '10mb', // Increase from default 1mb to 10mb
+    },
+    responseLimit: '10mb',
+  },
   // Fix for OneDrive file locking issues on Windows
   onDemandEntries: {
     maxInactiveAge: 60 * 1000,
