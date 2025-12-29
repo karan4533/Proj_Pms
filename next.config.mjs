@@ -1,42 +1,36 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  experimental: {
-    // Increase file upload limits for CSV task import
-    serverComponentsExternalPackages: [],
-  },
-  // Increase API body size limit for bulk uploads
-  api: {
-    bodyParser: {
-      sizeLimit: '10mb', // Increase from default 1mb to 10mb
-    },
-    responseLimit: '10mb',
-  },
+  // Moved from experimental in Next.js 16
+  serverExternalPackages: [],
+  
+  // Empty turbopack config to silence webpack warning
+  turbopack: {},
+  
   // Fix for OneDrive file locking issues on Windows
   onDemandEntries: {
     maxInactiveAge: 60 * 1000,
     pagesBufferLength: 5,
   },
-  // Disable webpack cache completely to prevent file lock issues
+  
+  // Webpack config for development only
   webpack: (config, { dev }) => {
-    // Disable all caching in development
     if (dev) {
       config.cache = false;
-      // Disable file system watcher aggregation
       config.watchOptions = {
         ...config.watchOptions,
         aggregateTimeout: 300,
-        poll: 1000, // Use polling instead of file watchers
+        poll: 1000,
         ignored: /node_modules/,
       };
     }
-    // Disable symlinks which cause issues with OneDrive
     config.resolve = {
       ...config.resolve,
       symlinks: false,
     };
     return config;
   },
-  // Increase body size limit to 100MB for file uploads
+  
+  // Increase body size limit for file uploads
   async headers() {
     return [
       {
