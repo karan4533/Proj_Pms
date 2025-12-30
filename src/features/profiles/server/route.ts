@@ -88,7 +88,9 @@ const app = new Hono()
           .values(insertValues)
           .returning();
 
-        return c.json({ data: newUser });
+        // Convert to plain object to avoid #state serialization error
+        const plainUser = JSON.parse(JSON.stringify(newUser));
+        return c.json({ data: plainUser });
       } catch (error: any) {
         // Drizzle wraps PostgreSQL errors in error.cause
         const pgError = error.cause || error;
@@ -167,7 +169,9 @@ const app = new Hono()
           .values({ name })
           .returning();
 
-        return c.json({ data: designation });
+        // Convert to plain object to avoid #state serialization error
+        const plainDesignation = JSON.parse(JSON.stringify(designation));
+        return c.json({ data: plainDesignation });
       } catch (error: any) {
         // Check for duplicate key error (PostgreSQL error code 23505)
         if (error.cause?.code === '23505' || error.code === '23505') {
@@ -206,7 +210,9 @@ const app = new Hono()
           .values({ name })
           .returning();
 
-        return c.json({ data: department });
+        // Convert to plain object to avoid #state serialization error
+        const plainDepartment = JSON.parse(JSON.stringify(department));
+        return c.json({ data: plainDepartment });
       } catch (error: any) {
         // Check for duplicate key error (PostgreSQL error code 23505)
         if (error.cause?.code === '23505' || error.code === '23505') {
@@ -298,11 +304,18 @@ const app = new Hono()
           updateValues.skills = data.skills.length > 0 ? data.skills : null;
         }
 
-        const [updatedUser] = await db
+        // Execute update without .returning() to avoid #state error
+        await db
           .update(users)
           .set(updateValues)
+          .where(eq(users.id, userId));
+
+        // Fetch updated user separately
+        const [updatedUser] = await db
+          .select()
+          .from(users)
           .where(eq(users.id, userId))
-          .returning();
+          .limit(1);
 
         if (!updatedUser) {
           return c.json({ error: "Profile not found" }, 404);

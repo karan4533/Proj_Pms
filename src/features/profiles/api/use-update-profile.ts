@@ -29,8 +29,15 @@ export const useUpdateProfile = () => {
       });
 
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "Failed to update profile");
+        let errorMsg = 'Failed to update profile';
+        try {
+          const error = await response.json();
+          errorMsg = error.error || error.message || errorMsg;
+        } catch {
+          // If JSON parsing fails, use status text
+          errorMsg = response.statusText || errorMsg;
+        }
+        throw new Error(errorMsg);
       }
 
       return response.json();
