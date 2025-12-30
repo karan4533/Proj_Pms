@@ -34,5 +34,93 @@ const client = postgres(DATABASE_URL, {
   connection: isBuilding ? { application_name: 'build' } : undefined,
 });
 
-// Create and export the database instance
-export const db = drizzle(client, { schema });
+// Create the base database instance
+const baseDb = drizzle(client, { schema });
+
+// FINAL FIX: Create a proxy that automatically converts ALL .returning() results to plain objects
+// This prevents "Cannot read private member #state" errors in Next.js 16 serverless
+export const db = new Proxy(baseDb, {
+  get(target: any, prop: string) {
+    const value = target[prop];
+    
+    // Intercept insert/update/delete operations
+    if (['insert', 'update', 'delete'].includes(prop)) {
+      return new Proxy(value, {
+        apply(fn: any, thisArg: any, args: any[]) {
+          const queryBuilder = fn.apply(thisArg, args);
+          
+          // Wrap the entire query builder
+          return new Proxy(queryBuilder, {
+            get(qbTarget: any, qbProp: string) {
+              const qbValue = qbTarget[qbProp];
+              
+              // Intercept .returning() method
+              if (qbProp === 'returning' && typeof qbValue === 'function') {
+                return function(this: any, ...returningArgs: any[]) {
+                  const result = qbValue.apply(this, returningArgs);
+                  
+                  // If result is a promise, wrap it to strip #state
+                  if (result && typeof result.then === 'function') {
+                    return result.then((data: any) => {
+                      // Convert to plain objects by JSON round-trip
+                      try {
+                        return JSON.parse(JSON.stringify(data));
+                      } catch {
+                        // If serialization fails, return as-is
+                        return data;
+                      }
+                    });
+                  }
+                  
+                  return result;
+                };
+              }
+              
+              // For other methods, return as-is but keep wrapping
+              if (typeof qbValue === 'function') {
+                return function(this: any, ...methodArgs: any[]) {
+                  const methodResult = qbValue.apply(this, methodArgs);
+                  
+                  // Keep chaining by returning the same proxy
+                  if (methodResult && typeof methodResult === 'object') {
+                    return new Proxy(methodResult, {
+                      get: (mrTarget: any, mrProp: string) => {
+                        const mrValue = mrTarget[mrProp];
+                        
+                        if (mrProp === 'returning' && typeof mrValue === 'function') {
+                          return function(this: any, ...retArgs: any[]) {
+                            const retResult = mrValue.apply(this, retArgs);
+                            
+                            if (retResult && typeof retResult.then === 'function') {
+                              return retResult.then((data: any) => {
+                                try {
+                                  return JSON.parse(JSON.stringify(data));
+                                } catch {
+                                  return data;
+                                }
+                              });
+                            }
+                            
+                            return retResult;
+                          };
+                        }
+                        
+                        return mrValue;
+                      }
+                    });
+                  }
+                  
+                  return methodResult;
+                };
+              }
+              
+              return qbValue;
+            }
+          });
+        }
+      });
+    }
+    
+    return value;
+  }
+}) as typeof baseDb;
