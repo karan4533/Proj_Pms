@@ -32,13 +32,20 @@ export const useLogout = () => {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 2000); // 2 second timeout
         
-        const response = await fetch('/api/auth/logout', {
+        // Build full URL for production
+        const apiUrl = process.env.NEXT_PUBLIC_APP_URL 
+          ? `${process.env.NEXT_PUBLIC_APP_URL}/api/auth/logout`
+          : '/api/auth/logout';
+        
+        const response = await fetch(apiUrl, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
           },
           signal: controller.signal,
-          credentials: 'include',
+          credentials: 'include', // CRITICAL: Send cookies with cross-origin requests
+          cache: 'no-store',
         });
         
         clearTimeout(timeoutId);

@@ -1,9 +1,11 @@
 import { Hono } from "hono";
 import { handle } from "hono/vercel";
 import { bodyLimit } from "hono/body-limit";
+import { cors } from "hono/cors";
 import { startCronService } from "@/lib/cron-service";
 
 import auth from "@/features/auth/server/route";
+import authDebug from "@/features/auth/server/debug-route";
 import members from "@/features/members/server/route";
 import workspaces from "@/features/workspaces/server/route";
 import projects from "@/features/projects/server/route";
@@ -24,6 +26,19 @@ import admin from "@/features/admin/server/route";
 import clients from "@/features/clients/server/route";
 
 const app = new Hono().basePath("/api");
+
+// CORS configuration for production
+const isProd = process.env.NODE_ENV === 'production';
+if (isProd && process.env.NEXT_PUBLIC_APP_URL) {
+  app.use("*", cors({
+    origin: process.env.NEXT_PUBLIC_APP_URL,
+    credentials: true,
+    allowMethods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowHeaders: ['Content-Type', 'Authorization'],
+    exposeHeaders: ['Content-Length', 'Set-Cookie'],
+    maxAge: 600,
+  }));
+}
 
 // Body size limit configuration
 // Note: Vercel limits are 4.5MB (Hobby), 10MB (Pro), 50MB (Enterprise)
@@ -57,6 +72,7 @@ app.get("/health", (c) => {
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 const routes = app
   .route("/auth", auth)
+  .route("/auth", authDebug) // Debug endpoint: /api/auth/debug
   .route("/workspaces", workspaces)
   .route("/members", members)
   .route("/projects", projects)

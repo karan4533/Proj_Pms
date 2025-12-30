@@ -80,13 +80,28 @@ const app = new Hono()
       });
 
       const isProd = process.env.NODE_ENV === 'production';
-      setCookie(c, AUTH_COOKIE, sessionToken, {
+      const cookieOptions: any = {
         path: "/",
         httpOnly: true,
-        secure: isProd, // Only secure in production
-        sameSite: isProd ? "strict" : "lax", // Lax for localhost
-        maxAge: 60 * 60 * 24 * 30,
-      });
+        secure: isProd, // HTTPS only in production
+        sameSite: "lax", // CRITICAL: Use 'lax' for both dev and prod to ensure consistent behavior
+        maxAge: 60 * 60 * 24 * 30, // 30 days
+      };
+
+      // Add explicit domain in production to prevent subdomain issues
+      if (isProd && process.env.NEXT_PUBLIC_APP_URL) {
+        try {
+          const url = new URL(process.env.NEXT_PUBLIC_APP_URL);
+          // Only set domain if it's not localhost/IP
+          if (!url.hostname.match(/^(localhost|127\.0\.0\.1|\d+\.\d+\.\d+\.\d+)$/)) {
+            cookieOptions.domain = url.hostname;
+          }
+        } catch (e) {
+          console.warn('[Login] Failed to parse NEXT_PUBLIC_APP_URL for cookie domain:', e);
+        }
+      }
+
+      setCookie(c, AUTH_COOKIE, sessionToken, cookieOptions);
 
       return c.json({ success: true });
     } catch (error) {
@@ -148,13 +163,28 @@ const app = new Hono()
       }
 
       // Always delete the cookie, even if session deletion failed
-      // This is critical for production HTTPS environments
-      deleteCookie(c, AUTH_COOKIE, {
+      // CRITICAL: Cookie options MUST exactly match those used in setCookie
+      const isProd = process.env.NODE_ENV === 'production';
+      const cookieOptions: any = {
         path: "/",
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: process.env.NODE_ENV === 'production' ? "strict" : "lax",
-      });
+        secure: isProd,
+        sameSite: "lax", // MUST match login (changed from strict/lax conditional)
+      };
+
+      // Add explicit domain in production (MUST match login)
+      if (isProd && process.env.NEXT_PUBLIC_APP_URL) {
+        try {
+          const url = new URL(process.env.NEXT_PUBLIC_APP_URL);
+          if (!url.hostname.match(/^(localhost|127\.0\.0\.1|\d+\.\d+\.\d+\.\d+)$/)) {
+            cookieOptions.domain = url.hostname;
+          }
+        } catch (e) {
+          console.warn('[Logout] Failed to parse NEXT_PUBLIC_APP_URL for cookie domain:', e);
+        }
+      }
+
+      deleteCookie(c, AUTH_COOKIE, cookieOptions);
 
       console.log('[Logout] Logout successful');
       return c.json({ success: true, message: "Logged out successfully" });
@@ -163,12 +193,24 @@ const app = new Hono()
       // Even if something fails, try to delete the cookie and return success
       // This ensures logout always works from the user's perspective
       try {
-        deleteCookie(c, AUTH_COOKIE, {
+        const isProd = process.env.NODE_ENV === 'production';
+        const cookieOptions: any = {
           path: "/",
           httpOnly: true,
-          secure: process.env.NODE_ENV === 'production',
-          sameSite: process.env.NODE_ENV === 'production' ? "strict" : "lax",
-        });
+          secure: isProd,
+          sameSite: "lax",
+        };
+
+        if (isProd && process.env.NEXT_PUBLIC_APP_URL) {
+          try {
+            const url = new URL(process.env.NEXT_PUBLIC_APP_URL);
+            if (!url.hostname.match(/^(localhost|127\.0\.0\.1|\d+\.\d+\.\d+\.\d+)$/)) {
+              cookieOptions.domain = url.hostname;
+            }
+          } catch {}
+        }
+
+        deleteCookie(c, AUTH_COOKIE, cookieOptions);
       } catch (cookieError) {
         console.error('[Logout] Cookie deletion error:', cookieError);
       }

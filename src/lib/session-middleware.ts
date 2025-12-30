@@ -67,9 +67,30 @@ export const sessionMiddleware = createMiddleware<AdditionalContext>(
 
       // Check if session is expired
       if (session.expires < new Date()) {
-        // Delete expired session
+        // Delete expired session and cookie
         try {
           await db.delete(sessions).where(eq(sessions.sessionToken, sessionToken));
+          
+          // Clear the expired cookie
+          const { deleteCookie } = await import('hono/cookie');
+          const isProd = process.env.NODE_ENV === 'production';
+          const cookieOptions: any = {
+            path: "/",
+            httpOnly: true,
+            secure: isProd,
+            sameSite: "lax",
+          };
+
+          if (isProd && process.env.NEXT_PUBLIC_APP_URL) {
+            try {
+              const url = new URL(process.env.NEXT_PUBLIC_APP_URL);
+              if (!url.hostname.match(/^(localhost|127\.0\.0\.1|\d+\.\d+\.\d+\.\d+)$/)) {
+                cookieOptions.domain = url.hostname;
+              }
+            } catch {}
+          }
+
+          deleteCookie(c, AUTH_COOKIE, cookieOptions);
         } catch (error) {
           console.error('Failed to delete expired session:', error);
         }
