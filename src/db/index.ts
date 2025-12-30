@@ -2,23 +2,27 @@ import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
 import * as schema from './schema';
 
-if (!process.env.DATABASE_URL) {
+// Disable connection during build time to avoid "Command exited with 1" errors on Vercel
+const isBuilding = process.env.NEXT_PHASE === 'phase-production-build' || 
+                   process.env.VERCEL_ENV === 'production' && !process.env.DATABASE_URL;
+
+if (!process.env.DATABASE_URL && !isBuilding) {
   throw new Error('DATABASE_URL is not defined in environment variables');
 }
+
+// Use dummy URL during build phase
+const DATABASE_URL = process.env.DATABASE_URL || 'postgresql://dummy:dummy@localhost:5432/dummy';
 
 // Create the connection with optimized pooling settings
 // Note: Connections are REUSED among all users - 10 connections can serve 10,000+ users
 // Each query only holds a connection for milliseconds, then releases it for the next user
 
 // Detect if using remote database (contains domain name) or local
-const isRemoteDb = process.env.DATABASE_URL.includes('.supabase.co') || 
-                   process.env.DATABASE_URL.includes('.neon.tech') ||
-                   process.env.DATABASE_URL.includes('.railway.app');
+const isRemoteDb = DATABASE_URL.includes('.supabase.co') || 
+                   DATABASE_URL.includes('.neon.tech') ||
+                   DATABASE_URL.includes('.railway.app');
 
-// Disable connection during build time to avoid "Command exited with 1" errors on Vercel
-const isBuilding = process.env.NEXT_PHASE === 'phase-production-build';
-
-const client = postgres(process.env.DATABASE_URL, {
+const client = postgres(DATABASE_URL, {
   max: process.env.NODE_ENV === 'production' ? 15 : 5,  // Production: 15 connections, Dev: 5 (enough for 10K users)
   idle_timeout: 20, // Close idle connections after 20 seconds
   connect_timeout: 10, // Connection timeout in seconds
