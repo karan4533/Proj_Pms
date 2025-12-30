@@ -127,6 +127,11 @@ const app = new Hono()
     try {
       console.log('[Logout] Starting logout process');
       
+      // Validate request method
+      if (c.req.method !== 'POST') {
+        return c.json({ error: "Method not allowed" }, 405);
+      }
+      
       // Get session token from cookie - don't use sessionMiddleware as it may fail
       const sessionToken = getCookie(c, AUTH_COOKIE);
       console.log('[Logout] Session token present:', !!sessionToken);
@@ -143,6 +148,7 @@ const app = new Hono()
       }
 
       // Always delete the cookie, even if session deletion failed
+      // This is critical for production HTTPS environments
       deleteCookie(c, AUTH_COOKIE, {
         path: "/",
         httpOnly: true,
@@ -155,6 +161,7 @@ const app = new Hono()
     } catch (error) {
       console.error('[Logout] Unexpected error:', error);
       // Even if something fails, try to delete the cookie and return success
+      // This ensures logout always works from the user's perspective
       try {
         deleteCookie(c, AUTH_COOKIE, {
           path: "/",

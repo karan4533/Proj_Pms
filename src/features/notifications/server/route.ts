@@ -109,10 +109,24 @@ const app = new Hono()
   // Clear all notifications (MUST come before /:notificationId)
   .delete("/clear-all", sessionMiddleware, async (c) => {
     try {
-      const user = c.get("user");
-      console.log('[Clear All Notifications] User:', user.id, 'Starting clear all');
+      console.log('[Clear All Notifications] Starting operation');
+      
+      // Validate request method
+      if (c.req.method !== 'DELETE') {
+        return c.json({ error: "Method not allowed" }, 405);
+      }
 
-      // Delete all notifications for this user - just execute without storing result
+      const user = c.get("user");
+      
+      // Validate user session
+      if (!user || !user.id) {
+        console.error('[Clear All Notifications] Invalid user session');
+        return c.json({ error: "Unauthorized - Invalid session" }, 401);
+      }
+
+      console.log('[Clear All Notifications] User:', user.id, 'Clearing all notifications');
+
+      // Delete all notifications for this user - execute without storing result to avoid #state
       const deleteQuery = db
         .delete(notifications)
         .where(eq(notifications.userId, user.id));
