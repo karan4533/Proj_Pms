@@ -45,16 +45,15 @@ export const Navbar = () => {
   const isClient = roleData?.role === "CLIENT";
   
   // Show client-specific title and description or regular ones
-  const displayTitle = mounted && isClient ? defaultMap.clientTitle : title;
-  const displayDescription = mounted ? (
-    isClient ? defaultMap.clientDescription : description
-  ) : null;
+  // Use consistent display logic to prevent flickering
+  const displayTitle = isClient ? defaultMap.clientTitle : title;
+  const displayDescription = isClient ? defaultMap.clientDescription : description;
 
   return (
     <nav className="pt-4 px-6 flex items-center justify-between">
       <div className="flex-col hidden lg:flex">
         <h1 className="text-2xl font-semibold">{displayTitle}</h1>
-        {displayDescription && <p className="text-muted-foreground">{displayDescription}</p>}
+        <p className="text-muted-foreground">{displayDescription}</p>
       </div>
       <MobileSidebar />
       <div className="flex items-center gap-2">

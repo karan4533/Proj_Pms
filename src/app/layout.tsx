@@ -8,6 +8,7 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { PermissionWrapper } from "@/components/providers/permission-wrapper";
 
 import "./globals.css";
+import "./mobile-fixes.css";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -31,12 +32,13 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={cn(inter.className, "antialiased min-h-screen")}>
+      <body className={cn(inter.className, "antialiased min-h-screen")} suppressHydrationWarning>
         <ThemeProvider
           attribute="class"
           defaultTheme="system"
           enableSystem
           disableTransitionOnChange
+          suppressHydrationWarning
         >
           <QueryProvider>
             <PermissionWrapper>
