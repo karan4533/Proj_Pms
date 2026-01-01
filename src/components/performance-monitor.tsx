@@ -26,7 +26,7 @@ export function PerformanceMonitor({
         );
       }
     };
-  });
+  }, [componentName, threshold]); // CRITICAL: Add deps to prevent continuous re-renders
 
   return null;
 }

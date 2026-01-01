@@ -86,7 +86,8 @@ export const MembersList = () => {
       { param: { memberId } },
       {
         onSuccess: () => {
-          window.location.reload();
+          // Use query invalidation instead of full page reload to prevent flickering
+          // The mutation already invalidates queries in the hook
         },
       }
     );
