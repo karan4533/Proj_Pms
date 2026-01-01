@@ -39,9 +39,9 @@ export const useClearAllNotifications = () => {
     onSuccess: (data) => {
       console.log('[Clear All] Invalidating queries');
       toast.success(data.message || "All notifications cleared");
-      queryClient.invalidateQueries({ queryKey: ["notifications"] });
-      // Also update the notification count
       queryClient.setQueryData(["notifications"], []);
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      queryClient.refetchQueries({ queryKey: ["notifications"], type: "active" });
     },
     onError: (error: Error) => {
       console.error('[Clear All] Mutation error:', error);

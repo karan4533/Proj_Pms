@@ -54,12 +54,15 @@ export const useCreateTask = () => {
         });
       }
       
-      // Selective task list invalidation
+      // Force refetch of task lists to show new task immediately
       queryClient.invalidateQueries({ queryKey: ["tasks"] });
       queryClient.refetchQueries({ 
         queryKey: ["tasks"],
-        type: "active" 
+        type: "active"
       });
+      
+      // Also refetch activity logs
+      queryClient.refetchQueries({ queryKey: ["activity-logs"], type: "active" });
     },
     onError: () => {
       toast.error("Failed to create task.");

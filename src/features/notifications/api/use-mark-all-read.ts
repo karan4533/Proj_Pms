@@ -39,6 +39,7 @@ export const useMarkAllNotificationsRead = () => {
     onSuccess: (data) => {
       console.log('[Mark All Read] Invalidating queries');
       queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      queryClient.refetchQueries({ queryKey: ["notifications"], type: "active" });
       toast.success(data.message || "All notifications marked as read");
     },
     onError: (error: Error) => {

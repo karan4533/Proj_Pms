@@ -53,6 +53,9 @@ export const useDeleteTask = () => {
         queryKey: ["workspace-analytics"],
         exact: false
       });
+      
+      // Force refetch to update UI immediately
+      queryClient.refetchQueries({ queryKey: ["tasks"], type: "active" });
     },
     onError: () => {
       toast.error("Failed to delete task.");

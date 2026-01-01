@@ -18,6 +18,7 @@ export const useMarkNotificationRead = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      queryClient.refetchQueries({ queryKey: ["notifications"], type: "active" });
     },
   });
 
