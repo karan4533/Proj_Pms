@@ -30,7 +30,7 @@ export const useGetTasks = ({
   offset = 0,
 }: UseGetTasksProps) => {
   const query = useQuery({
-    queryKey: ["tasks", workspaceId, projectId, status, assigneeId, dueDate, search, month, week, limit, offset],
+    queryKey: ["v2", "tasks", workspaceId, projectId, status, assigneeId, dueDate, search, month, week, limit, offset], // Added version prefix
     queryFn: async () => {
       const startTime = performance.now();
       

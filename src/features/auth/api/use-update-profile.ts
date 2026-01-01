@@ -22,8 +22,8 @@ export const useUpdateProfile = () => {
     onSuccess: () => {
       toast.success("Profile updated successfully");
       // Invalidate and refetch to ensure fresh data
-      queryClient.invalidateQueries({ queryKey: ["current"] });
-      queryClient.refetchQueries({ queryKey: ["current"] });
+      queryClient.invalidateQueries({ queryKey: ["v2", "current"] });
+      queryClient.refetchQueries({ queryKey: ["v2", "current"] });
     },
     onError: () => {
       toast.error("Failed to update profile");

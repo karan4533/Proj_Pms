@@ -106,7 +106,7 @@ export const useUploadExcelTasks = () => {
     onSuccess: (data) => {
       toast.success(data.data.message);
       // Invalidate all task-related queries to refresh the UI
-      queryClient.invalidateQueries({ queryKey: ["tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["v2", "tasks"] });
       queryClient.invalidateQueries({ queryKey: ["task"] });
       
       // Force refetch to ensure new tasks show immediately

@@ -6,6 +6,7 @@ import { Toaster } from "sonner";
 import { QueryProvider } from "@/components/query-provider";
 import { ThemeProvider } from "@/components/theme-provider";
 import { PermissionWrapper } from "@/components/providers/permission-wrapper";
+import { CacheChecker } from "@/components/cache-checker";
 
 import "./globals.css";
 import "./mobile-fixes.css";
@@ -41,6 +42,7 @@ export default function RootLayout({
         >
           <QueryProvider>
             <PermissionWrapper>
+              <CacheChecker />
               <Toaster />
               {children}
             </PermissionWrapper>

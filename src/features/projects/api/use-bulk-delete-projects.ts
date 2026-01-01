@@ -25,7 +25,7 @@ export const useBulkDeleteProjects = () => {
       toast.success(`Successfully deleted ${data.data.deletedCount} project(s)`);
       queryClient.invalidateQueries({ queryKey: ["projects"] });
       queryClient.invalidateQueries({ queryKey: ["workspace-analytics"] });
-      queryClient.invalidateQueries({ queryKey: ["tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["v2", "tasks"] });
     },
     onError: (error) => {
       toast.error(error.message || "Failed to delete projects");

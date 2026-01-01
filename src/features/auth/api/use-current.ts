@@ -4,7 +4,7 @@ import { client } from "@/lib/rpc";
 
 export const useCurrent = () => {
   const query = useQuery({
-    queryKey: ["current"],
+    queryKey: ["v2", "current"], // Added version prefix to force cache refresh
     queryFn: async () => {
       const response = await client.api.auth.current.$get();
 

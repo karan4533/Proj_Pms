@@ -37,7 +37,7 @@ export const useCreateTaskOverview = () => {
     },
     onSuccess: () => {
       toast.success("Task overview submitted successfully! Awaiting admin review.");
-      queryClient.invalidateQueries({ queryKey: ["tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["v2", "tasks"] });
       queryClient.invalidateQueries({ queryKey: ["task-overviews"] });
       queryClient.invalidateQueries({ queryKey: ["activity-logs"] });
     },

@@ -7,7 +7,7 @@ import { client } from "@/lib/rpc";
  */
 export const useGetCurrentUserRole = () => {
   const query = useQuery({
-    queryKey: ["current-user-role"],
+    queryKey: ["v2", "current-user-role"], // Added version prefix to force cache refresh
     queryFn: async () => {
       const response = await client.api.members["role"].$get();
 

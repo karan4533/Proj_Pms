@@ -32,7 +32,7 @@ export const useReviewTaskOverview = () => {
           ? "Task approved and moved to Done!"
           : "Rework requested. Task moved back to In Progress."
       );
-      queryClient.invalidateQueries({ queryKey: ["tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["v2", "tasks"] });
       queryClient.invalidateQueries({ queryKey: ["task-overviews"] });
       queryClient.invalidateQueries({ queryKey: ["activity-logs"] });
       queryClient.invalidateQueries({ queryKey: ["notifications"] });
