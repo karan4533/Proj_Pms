@@ -8,20 +8,31 @@ import {
   QueryClientProvider,
 } from "@tanstack/react-query";
 
+// Detect production environment
+const isProduction = typeof window !== 'undefined' && 
+  (window.location.hostname.includes('vercel.app') || window.location.hostname.includes('yourdomain.com'));
+
 function makeQueryClient() {
   return new QueryClient({
     defaultOptions: {
       queries: {
         // With SSR, we usually want to set some default staleTime
         // above 0 to avoid refetching immediately on the client
-        staleTime: 5 * 60 * 1000, // 5 minutes - prevent constant refetching
-        gcTime: 10 * 60 * 1000, // 10 minutes - garbage collect unused queries
+        staleTime: isProduction ? 10 * 60 * 1000 : 5 * 60 * 1000, // 10 min prod, 5 min dev
+        gcTime: 15 * 60 * 1000, // 15 minutes - keep in cache longer
         refetchOnWindowFocus: false, // Don't refetch when window regains focus
         refetchOnMount: false, // Don't refetch on every mount
         refetchInterval: false, // Disable auto-refetch intervals
         refetchIntervalInBackground: false, // Disable background refetch
-        retry: 2, // Retry failed requests 2 times
+        retry: isProduction ? 3 : 2, // More retries in production for serverless cold starts
         retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
+        // Network mode for better offline handling
+        networkMode: 'offlineFirst',
+      },
+      mutations: {
+        // Retry mutations in production (serverless timeout handling)
+        retry: isProduction ? 2 : 1,
+        networkMode: 'offlineFirst',
       },
     },
   });

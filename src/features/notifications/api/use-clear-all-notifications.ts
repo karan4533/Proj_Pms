@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { client } from "@/lib/rpc";
+import { refetchQueries } from "@/lib/production-fixes";
 
 export const useClearAllNotifications = () => {
   const queryClient = useQueryClient();
@@ -36,12 +37,12 @@ export const useClearAllNotifications = () => {
       console.log('[Clear All] Success:', result);
       return result;
     },
-    onSuccess: (data) => {
+    onSuccess: async (data) => {
       console.log('[Clear All] Invalidating queries');
       toast.success(data.message || "All notifications cleared");
       queryClient.setQueryData(["notifications"], []);
-      queryClient.invalidateQueries({ queryKey: ["notifications"] });
-      queryClient.refetchQueries({ queryKey: ["notifications"], type: "active" });
+      // Use production-safe refetch with serverless handling
+      await refetchQueries(queryClient, ["notifications"]);
     },
     onError: (error: Error) => {
       console.error('[Clear All] Mutation error:', error);

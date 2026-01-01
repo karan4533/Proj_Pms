@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { client } from "@/lib/rpc";
 import { toast } from "sonner";
+import { refetchQueries } from "@/lib/production-fixes";
 
 export const useMarkAllNotificationsRead = () => {
   const queryClient = useQueryClient();
@@ -36,10 +37,10 @@ export const useMarkAllNotificationsRead = () => {
       console.log('[Mark All Read] Success:', result);
       return result;
     },
-    onSuccess: (data) => {
+    onSuccess: async (data) => {
       console.log('[Mark All Read] Invalidating queries');
-      queryClient.invalidateQueries({ queryKey: ["notifications"] });
-      queryClient.refetchQueries({ queryKey: ["notifications"], type: "active" });
+      // Use production-safe refetch with serverless handling
+      await refetchQueries(queryClient, ["notifications"]);
       toast.success(data.message || "All notifications marked as read");
     },
     onError: (error: Error) => {

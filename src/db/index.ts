@@ -22,16 +22,25 @@ const isRemoteDb = DATABASE_URL.includes('.supabase.co') ||
                    DATABASE_URL.includes('.neon.tech') ||
                    DATABASE_URL.includes('.railway.app');
 
+// Serverless-optimized connection pool
+// Vercel/serverless: Each function instance needs its own pool
+// Use MUCH smaller pool in production to avoid exhausting database connections
+const isServerless = process.env.VERCEL === '1' || process.env.VERCEL_ENV === 'production';
+
 const client = postgres(DATABASE_URL, {
-  max: process.env.NODE_ENV === 'production' ? 15 : 5,  // Production: 15 connections, Dev: 5 (enough for 10K users)
-  idle_timeout: 20, // Close idle connections after 20 seconds
+  max: isServerless ? 1 : 5,  // CRITICAL: Serverless uses 1 connection per instance
+  idle_timeout: isServerless ? 0 : 20, // Never close in serverless (reuse across invocations)
   connect_timeout: 10, // Connection timeout in seconds
   prepare: false,   // Disable prepared statements for better performance with dynamic queries
-  max_lifetime: 60 * 5, // Max connection lifetime: 5 minutes (prevents stale connections)
+  max_lifetime: isServerless ? 60 * 60 : 60 * 5, // Serverless: 1 hour, Local: 5 minutes
   onnotice: () => {}, // Suppress notices
   ssl: isRemoteDb ? 'require' : false, // Only use SSL for remote databases
   // Don't actually connect during build phase
   connection: isBuilding ? { application_name: 'build' } : undefined,
+  // Transform undefined to null to prevent serialization issues
+  transform: {
+    undefined: null,
+  },
 });
 
 // Create the base database instance

@@ -4,6 +4,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { InferRequestType, InferResponseType } from "hono";
 
 import { client } from "@/lib/rpc";
+import { refetchQueries } from "@/lib/production-fixes";
 
 type ResponseType = InferResponseType<
   (typeof client.api.tasks)["bulk-update"]["$post"],
@@ -32,11 +33,12 @@ export const useBulkUpdateTasks = () => {
       console.log("✅ Bulk update successful:", result);
       return result;
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       toast.success("Tasks updated.");
       queryClient.invalidateQueries({ queryKey: ["project-analytics"] });
       queryClient.invalidateQueries({ queryKey: ["workspace-analytics"] });
-      queryClient.invalidateQueries({ queryKey: ["tasks"] });
+      // Use production-safe refetch with serverless handling
+      await refetchQueries(queryClient, ["tasks"]);
     },
     onError: () => {
       toast.error("Failed to update tasks.");

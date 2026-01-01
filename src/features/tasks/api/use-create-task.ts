@@ -4,6 +4,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { InferRequestType, InferResponseType } from "hono";
 
 import { client } from "@/lib/rpc";
+import { refetchQueries } from "@/lib/production-fixes";
 
 type ResponseType = InferResponseType<(typeof client.api.tasks)["$post"], 200>;
 type RequestType = InferRequestType<(typeof client.api.tasks)["$post"]>;
@@ -21,7 +22,7 @@ export const useCreateTask = () => {
 
       return await response.json();
     },
-    onSuccess: (data) => {
+    onSuccess: async (data) => {
       toast.success("Task created.");
       
       // Optimized: Only invalidate relevant queries
@@ -54,15 +55,9 @@ export const useCreateTask = () => {
         });
       }
       
-      // Force refetch of task lists to show new task immediately
-      queryClient.invalidateQueries({ queryKey: ["tasks"] });
-      queryClient.refetchQueries({ 
-        queryKey: ["tasks"],
-        type: "active"
-      });
-      
-      // Also refetch activity logs
-      queryClient.refetchQueries({ queryKey: ["activity-logs"], type: "active" });
+      // Use production-safe refetch with serverless handling
+      await refetchQueries(queryClient, ["tasks"]);
+      await refetchQueries(queryClient, ["activity-logs"]);
     },
     onError: () => {
       toast.error("Failed to create task.");

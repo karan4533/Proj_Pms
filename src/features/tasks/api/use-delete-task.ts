@@ -3,6 +3,7 @@ import { InferRequestType, InferResponseType } from "hono";
 import { toast } from "sonner";
 
 import { client } from "@/lib/rpc";
+import { refetchQueries } from "@/lib/production-fixes";
 
 type ResponseType = InferResponseType<
   (typeof client.api.tasks)[":taskId"]["$delete"],
@@ -25,7 +26,7 @@ export const useDeleteTask = () => {
 
       return await response.json();
     },
-    onSuccess: ({ data }) => {
+    onSuccess: async ({ data }) => {
       toast.success("Task deleted.");
       
       // Optimized: Remove from cache and update lists directly
@@ -54,8 +55,8 @@ export const useDeleteTask = () => {
         exact: false
       });
       
-      // Force refetch to update UI immediately
-      queryClient.refetchQueries({ queryKey: ["tasks"], type: "active" });
+      // Use production-safe refetch with serverless handling
+      await refetchQueries(queryClient, ["tasks"]);
     },
     onError: () => {
       toast.error("Failed to delete task.");

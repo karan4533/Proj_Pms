@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { client } from "@/lib/rpc";
+import { refetchQueries } from "@/lib/production-fixes";
 
 export const useDeleteNotification = () => {
   const queryClient = useQueryClient();
@@ -16,9 +17,9 @@ export const useDeleteNotification = () => {
 
       return await response.json();
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["notifications"] });
-      queryClient.refetchQueries({ queryKey: ["notifications"], type: "active" });
+    onSuccess: async () => {
+      // Use production-safe refetch with serverless handling
+      await refetchQueries(queryClient, ["notifications"]);
     },
   });
 
