@@ -81,8 +81,11 @@ export const AttendanceTracker = ({ workspaceId }: AttendanceTrackerProps = {}) 
       // If current time is past midnight, auto-end the shift
       if (currentDate >= midnightToday) {
         console.log('Auto-ending shift at midnight...');
-        // Reload to get updated shift status from server
-        window.location.reload();
+        // Reload only once - set a flag to prevent infinite reload loop
+        if (!sessionStorage.getItem('midnight-reload-done')) {
+          sessionStorage.setItem('midnight-reload-done', Date.now().toString());
+          window.location.reload();
+        }
       }
     };
 
