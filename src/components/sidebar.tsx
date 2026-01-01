@@ -39,9 +39,10 @@ export const Sidebar = () => {
   const [mounted, setMounted] = useState(false);
 
   // Prevent hydration mismatch by only rendering role-specific content after mount
+  // Use useEffect with empty deps to run only once on mount
   useEffect(() => {
     setMounted(true);
-  }, []);
+  }, []); // Empty deps array ensures this runs only once
 
   const toggleSection = (section: string) => {
     setExpandedSections((prev) =>

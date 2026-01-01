@@ -38,9 +38,10 @@ export const Navbar = () => {
   const { data: roleData } = useGetCurrentUserRole();
   const [mounted, setMounted] = useState(false);
 
+  // Mount flag to prevent hydration mismatch - runs only once
   useEffect(() => {
     setMounted(true);
-  }, []);
+  }, []); // Empty deps array ensures this runs only once
 
   const isClient = roleData?.role === "CLIENT";
   

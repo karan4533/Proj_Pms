@@ -50,10 +50,13 @@ export const AttendanceTracker = ({ workspaceId }: AttendanceTrackerProps = {}) 
     if (!activeShift) {
       setElapsedTime(0);
       setShowMidnightWarning(false);
+      // Clear midnight reload flag when no active shift
+      sessionStorage.removeItem('midnight-reload-done');
       return;
     }
 
     const startTime = new Date(activeShift.shiftStartTime).getTime();
+    let interval: NodeJS.Timeout | null = null;
     
     const updateTimer = () => {
       const now = Date.now();
@@ -80,19 +83,37 @@ export const AttendanceTracker = ({ workspaceId }: AttendanceTrackerProps = {}) 
       
       // If current time is past midnight, auto-end the shift
       if (currentDate >= midnightToday) {
-        console.log('Auto-ending shift at midnight...');
-        // Reload only once - set a flag to prevent infinite reload loop
-        if (!sessionStorage.getItem('midnight-reload-done')) {
+        const reloadFlag = sessionStorage.getItem('midnight-reload-done');
+        const lastReloadTime = reloadFlag ? parseInt(reloadFlag, 10) : 0;
+        const timeSinceReload = Date.now() - lastReloadTime;
+        
+        // Only reload if we haven't reloaded in the last 5 minutes (prevent rapid reloads)
+        if (!reloadFlag || timeSinceReload > 5 * 60 * 1000) {
+          console.log('Auto-ending shift at midnight...');
           sessionStorage.setItem('midnight-reload-done', Date.now().toString());
+          // Clear interval before reload to prevent memory leak
+          if (interval) {
+            clearInterval(interval);
+            interval = null;
+          }
           window.location.reload();
         }
       }
     };
 
+    // Initial update
     updateTimer();
-    const interval = setInterval(updateTimer, 1000);
+    
+    // Start interval - update every second
+    interval = setInterval(updateTimer, 1000);
 
-    return () => clearInterval(interval);
+    // Cleanup function - CRITICAL for preventing continuous re-renders
+    return () => {
+      if (interval) {
+        clearInterval(interval);
+        interval = null;
+      }
+    };
   }, [activeShift]);
 
   const formatTime = (seconds: number) => {
