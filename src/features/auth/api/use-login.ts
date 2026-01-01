@@ -26,7 +26,7 @@ export const useLogin = () => {
     },
     onSuccess: () => {
       toast.success("Logged in successfully");
-      router.refresh();
+      // Query invalidation triggers re-render, no need for router.refresh()
       queryClient.invalidateQueries({ queryKey: ["current"] });
       queryClient.invalidateQueries({ queryKey: ["current-user-role"] });
     },

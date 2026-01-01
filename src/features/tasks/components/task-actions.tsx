@@ -57,9 +57,8 @@ export const TaskActions = ({ id, projectId, assigneeId, children }: TaskActions
       { param: { taskId: id } },
       {
         onSuccess: () => {
-          // Go back to previous page and refresh
+          // Go back to previous page - query invalidation will handle refresh
           router.back();
-          router.refresh();
         },
       }
     );

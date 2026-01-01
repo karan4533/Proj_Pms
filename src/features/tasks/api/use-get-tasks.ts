@@ -73,10 +73,10 @@ export const useGetTasks = ({
 
       return data;
     },
-    staleTime: 30 * 1000,           // 30 seconds - shorter for better data freshness
+    staleTime: 5 * 60 * 1000,       // 5 minutes - prevent flickering from constant refetch
     gcTime: 10 * 60 * 1000,         // 10 minutes - keep in cache longer
-    refetchOnWindowFocus: true,     // Refetch when window gains focus
-    refetchOnMount: true,            // Refetch when component mounts
+    refetchOnWindowFocus: false,    // Don't refetch on focus - prevents page flickering
+    refetchOnMount: false,          // Don't refetch on mount - prevents page flickering
     retry: 2,                        // Retry failed requests twice
     retryDelay: 1000,              // Wait 1 second between retries
   });

@@ -38,9 +38,8 @@ export const TaskBreadcrumbs = ({ project, task }: TaskBreadcrumbsProps) => {
       { param: { taskId: task.id } },
       {
         onSuccess: () => {
-          // Navigate and force refresh to ensure fresh data
+          // Navigate - query invalidation will handle data refresh
           router.push(`/workspaces/${workspaceId}/tasks`);
-          router.refresh();
         },
       }
     );

@@ -19,7 +19,7 @@ export const useCreateWorkspace = () => {
     },
     onSuccess: () => {
       toast.success("Workspace created.");
-      router.refresh();
+      // Query invalidation triggers re-render, no need for router.refresh()
       queryClient.invalidateQueries({ queryKey: ["workspaces"] });
     },
     onError: () => {
