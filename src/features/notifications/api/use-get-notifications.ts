@@ -15,7 +15,9 @@ export const useGetNotifications = () => {
       const { data } = await response.json();
       return data;
     },
-    refetchInterval: 30000, // Refetch every 30 seconds
+    staleTime: 2 * 60 * 1000, // 2 minutes
+    refetchOnWindowFocus: false, // Disable auto-refetch on focus
+    // refetchInterval removed - use manual refetch instead
   });
 
   return query;

@@ -14,10 +14,12 @@ function makeQueryClient() {
       queries: {
         // With SSR, we usually want to set some default staleTime
         // above 0 to avoid refetching immediately on the client
-        staleTime: 60 * 1000, // 1 minute - reduced from 5 min for fresher data
+        staleTime: 5 * 60 * 1000, // 5 minutes - prevent constant refetching
         gcTime: 10 * 60 * 1000, // 10 minutes - garbage collect unused queries
         refetchOnWindowFocus: false, // Don't refetch when window regains focus
-        refetchOnMount: true, // Refetch on mount if data is stale
+        refetchOnMount: false, // Don't refetch on every mount
+        refetchInterval: false, // Disable auto-refetch intervals
+        refetchIntervalInBackground: false, // Disable background refetch
         retry: 2, // Retry failed requests 2 times
         retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
       },

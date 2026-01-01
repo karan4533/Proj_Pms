@@ -16,7 +16,9 @@ export const useCurrent = () => {
 
       return data;
     },
-    staleTime: 0, // Always consider data stale so it refetches after invalidation
+    staleTime: 5 * 60 * 1000, // 5 minutes - prevent constant refetching
+    refetchOnWindowFocus: false, // Don't refetch on window focus
+    refetchOnMount: false, // Don't refetch on every mount
   });
 
   return query;
