@@ -1,0 +1,54 @@
+import type { Metadata } from "next";
+import { Inter } from "next/font/google";
+
+import { cn } from "@/lib/utils";
+import { Toaster } from "sonner";
+import { QueryProvider } from "@/components/query-provider";
+import { ThemeProvider } from "@/components/theme-provider";
+import { PermissionWrapper } from "@/components/providers/permission-wrapper";
+import { CacheChecker } from "@/components/cache-checker";
+
+import "./globals.css";
+import "./mobile-fixes.css";
+
+const inter = Inter({ subsets: ["latin"] });
+
+export const metadata: Metadata = {
+  title: "Project Management System",
+  description: "A modern project management system built with Next.js and PostgreSQL",
+  icons: {
+    icon: [
+      {
+        url: "/logo.svg",
+        type: "image/svg+xml",
+      }
+    ],
+  },
+};
+
+export default function RootLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
+  return (
+    <html lang="en" suppressHydrationWarning>
+      <body className={cn(inter.className, "antialiased min-h-screen")} suppressHydrationWarning>
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+        >
+          <QueryProvider>
+            <PermissionWrapper>
+              <CacheChecker />
+              <Toaster />
+              {children}
+            </PermissionWrapper>
+          </QueryProvider>
+        </ThemeProvider>
+      </body>
+    </html>
+  );
+}

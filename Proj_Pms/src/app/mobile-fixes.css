@@ -1,0 +1,56 @@
+/* Mobile Viewport Height Fixes */
+/* Prevents flickering on mobile browsers caused by dynamic viewport height changes */
+
+:root {
+  /* Use dvh (dynamic viewport height) when supported, fallback to vh */
+  --vh: 1vh;
+}
+
+@supports (height: 100dvh) {
+  :root {
+    --vh: 1dvh;
+  }
+}
+
+/* Prevent layout shifts on mobile */
+html {
+  overflow-x: hidden;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  overflow-x: hidden;
+  /* Prevent momentum scrolling issues on iOS */
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Fix for mobile browser address bar appearing/disappearing */
+.min-h-screen {
+  min-height: 100vh;
+  min-height: calc(var(--vh, 1vh) * 100);
+}
+
+.h-screen {
+  height: 100vh;
+  height: calc(var(--vh, 1vh) * 100);
+}
+
+/* Prevent flash of unstyled content */
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
+/* Improve mobile tap targets */
+button,
+a {
+  -webkit-tap-highlight-color: rgba(0, 0, 0, 0);
+}
+
+/* Prevent text size adjustment on orientation change */
+html {
+  -webkit-text-size-adjust: 100%;
+  -moz-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
