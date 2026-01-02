@@ -37,12 +37,20 @@ export const Sidebar = () => {
   const { role } = usePermissionContext();
   const [expandedSections, setExpandedSections] = useState<string[]>(["Home", "Projects"]);
   const [mounted, setMounted] = useState(false);
+  const [adminState, setAdminState] = useState(false);
 
   // Prevent hydration mismatch by only rendering role-specific content after mount
   // Use useEffect with empty deps to run only once on mount
   useEffect(() => {
     setMounted(true);
   }, []); // Empty deps array ensures this runs only once
+
+  // Update admin state only when data changes and component is mounted
+  useEffect(() => {
+    if (mounted && !isLoading && isAdmin !== undefined) {
+      setAdminState(!!isAdmin);
+    }
+  }, [isAdmin, isLoading, mounted]);
 
   const toggleSection = (section: string) => {
     setExpandedSections((prev) =>
@@ -102,7 +110,7 @@ export const Sidebar = () => {
               <FileText className="size-4" />
               Report
             </Link>
-            {mounted && isAdmin && (
+            {mounted && adminState && (
               <>
                 <Link
                   href="/profile"
@@ -147,7 +155,7 @@ export const Sidebar = () => {
         </button>
         {expandedSections.includes("Projects") && (
           <nav className="flex flex-col gap-1 ml-4 mt-1">
-            {mounted && isAdmin && role !== MemberRole.CLIENT && (
+            {mounted && adminState && role !== MemberRole.CLIENT && (
               <>
                 <Link
                   href="/add-requirements"
@@ -224,7 +232,7 @@ export const Sidebar = () => {
             <Clock className="size-4" />
             My Attendance
           </Link>
-          {mounted && !isAdmin && (
+          {mounted && !adminState && (
             <Link
               href="/weekly-report"
               className="flex items-center gap-2.5 p-2.5 rounded-md font-medium hover:text-primary transition text-muted-foreground hover:bg-muted"
@@ -233,7 +241,7 @@ export const Sidebar = () => {
               Weekly Report
             </Link>
           )}
-          {mounted && isAdmin && (
+          {mounted && adminState && (
             <Link
               href="/report-download"
               className="flex items-center gap-2.5 p-2.5 rounded-md font-medium hover:text-primary transition text-muted-foreground hover:bg-muted"

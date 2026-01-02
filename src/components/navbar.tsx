@@ -35,15 +35,21 @@ export const Navbar = () => {
   const { title, description } = pathnameMap[pathnameKey] || defaultMap;
   
   // Check if user is CLIENT
-  const { data: roleData } = useGetCurrentUserRole();
+  const { data: roleData, isLoading } = useGetCurrentUserRole();
   const [mounted, setMounted] = useState(false);
+  const [isClient, setIsClient] = useState(false);
 
   // Mount flag to prevent hydration mismatch - runs only once
   useEffect(() => {
     setMounted(true);
   }, []); // Empty deps array ensures this runs only once
 
-  const isClient = roleData?.role === "CLIENT";
+  // Update isClient state only when data changes and component is mounted
+  useEffect(() => {
+    if (mounted && !isLoading && roleData) {
+      setIsClient(roleData.role === "CLIENT");
+    }
+  }, [roleData, isLoading, mounted]);
   
   // Show client-specific title and description or regular ones
   // Use consistent display logic to prevent flickering

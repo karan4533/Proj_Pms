@@ -24,10 +24,13 @@ function makeQueryClient() {
         refetchOnMount: false, // Don't refetch on every mount
         refetchInterval: false, // Disable auto-refetch intervals
         refetchIntervalInBackground: false, // Disable background refetch
+        refetchOnReconnect: false, // Don't refetch when network reconnects - prevents flicker
         retry: isProduction ? 3 : 2, // More retries in production for serverless cold starts
         retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
         // Network mode for better offline handling
         networkMode: 'offlineFirst',
+        // Keep previous data while fetching new data - prevents loading flicker
+        placeholderData: (previousData) => previousData,
       },
       mutations: {
         // Retry mutations in production (serverless timeout handling)
