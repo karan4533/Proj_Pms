@@ -108,14 +108,10 @@ export const useUploadExcelTasks = () => {
       // Invalidate all task-related queries to refresh the UI
       queryClient.invalidateQueries({ queryKey: ["v2", "tasks"] });
       queryClient.invalidateQueries({ queryKey: ["task"] });
+      queryClient.invalidateQueries({ queryKey: ["v2", "tasks"] });
       
-      // Force refetch to ensure new tasks show immediately
-      queryClient.refetchQueries({ queryKey: ["tasks"] });
-      
-      // Reload the page to ensure tasks appear (workaround for dev server issue)
-      setTimeout(() => {
-        window.location.reload();
-      }, 1000);
+      // Show success message
+      toast.success("Tasks imported successfully!");
     },
     onError: (error: Error) => {
       toast.error(error.message);

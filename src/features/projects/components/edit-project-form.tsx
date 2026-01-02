@@ -68,7 +68,7 @@ export const EditProjectForm = ({
       { param: { projectId: initialValues.id } },
       {
         onSuccess: () => {
-          window.location.href = `/workspaces/${initialValues.workspaceId}`;
+          router.push(`/workspaces/${initialValues.workspaceId}`);
         },
       }
     );

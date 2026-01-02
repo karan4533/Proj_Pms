@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { Clock, Play, Square, Download, Loader2, Plus, X } from "lucide-react";
 import { format } from "date-fns";
+import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
@@ -40,6 +41,7 @@ export const AttendanceTracker = ({ workspaceId }: AttendanceTrackerProps = {}) 
   const [isEndShiftDialogOpen, setIsEndShiftDialogOpen] = useState(false);
   const [showMidnightWarning, setShowMidnightWarning] = useState(false);
 
+  const queryClient = useQueryClient();
   const { data: activeShift, isLoading } = useGetActiveShift();
   const { data: projects } = useGetProjects({});
   const startShift = useStartShift();
@@ -87,16 +89,14 @@ export const AttendanceTracker = ({ workspaceId }: AttendanceTrackerProps = {}) 
         const lastReloadTime = reloadFlag ? parseInt(reloadFlag, 10) : 0;
         const timeSinceReload = Date.now() - lastReloadTime;
         
-        // Only reload if we haven't reloaded in the last 5 minutes (prevent rapid reloads)
+        // Only trigger midnight shift end if we haven't done it in the last 5 minutes
         if (!reloadFlag || timeSinceReload > 5 * 60 * 1000) {
           console.log('Auto-ending shift at midnight...');
           sessionStorage.setItem('midnight-reload-done', Date.now().toString());
-          // Clear interval before reload to prevent memory leak
-          if (interval) {
-            clearInterval(interval);
-            interval = null;
-          }
-          window.location.reload();
+          // Invalidate attendance queries instead of full page reload
+          queryClient.invalidateQueries({ queryKey: ["v2", "active-shift"] });
+          queryClient.invalidateQueries({ queryKey: ["v2", "attendance"] });
+          toast.info("Shift auto-ended at midnight");
         }
       }
     };
