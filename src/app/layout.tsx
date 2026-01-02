@@ -10,6 +10,7 @@ import { CacheChecker } from "@/components/cache-checker";
 
 import "./globals.css";
 import "./mobile-fixes.css";
+import "./anti-flicker.css";
 
 const inter = Inter({ subsets: ["latin"] });
 

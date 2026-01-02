@@ -1,1 +1,0 @@
-ALTER TABLE "attendance" DROP COLUMN "start_activity";
