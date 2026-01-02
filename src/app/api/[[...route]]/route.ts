@@ -3,6 +3,7 @@ import { handle } from "hono/vercel";
 import { bodyLimit } from "hono/body-limit";
 import { cors } from "hono/cors";
 import { startCronService } from "@/lib/cron-service";
+import { logger } from "@/lib/logger";
 
 import auth from "@/features/auth/server/route";
 import authDebug from "@/features/auth/server/debug-route";
@@ -24,8 +25,23 @@ import weeklyReports from "@/features/weekly-reports/server/route";
 import bugs from "@/features/bugs/server/route";
 import admin from "@/features/admin/server/route";
 import clients from "@/features/clients/server/route";
+import health from "./health-route";
 
 const app = new Hono().basePath("/api");
+
+// Request logging middleware
+app.use("*", async (c, next) => {
+  const start = performance.now();
+  await next();
+  const duration = Math.round(performance.now() - start);
+  
+  logger.api(
+    c.req.method,
+    c.req.path,
+    c.res.status,
+    duration
+  );
+});
 
 // CORS configuration for production
 const isProd = process.env.NODE_ENV === 'production';
@@ -60,17 +76,18 @@ app.use("*", bodyLimit({
 }));
 
 // Root health check endpoint
-app.get("/health", (c) => {
+app.get("/", (c) => {
   return c.json({ 
     status: "ok", 
-    message: "API is running",
+    message: "Enterprise PMS API",
+    version: "2.0.0",
     timestamp: new Date().toISOString(),
-    env: process.env.NODE_ENV
   });
 });
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 const routes = app
+  .route("/health", health)
   .route("/auth", auth)
   .route("/auth", authDebug) // Debug endpoint: /api/auth/debug
   .route("/workspaces", workspaces)
