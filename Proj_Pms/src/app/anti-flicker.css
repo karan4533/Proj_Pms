@@ -1,0 +1,79 @@
+/* Anti-Flickering CSS Rules */
+
+/* Prevent layout shift during page load */
+html, body {
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* Smooth opacity transitions for loading states */
+[data-loading="true"] {
+  transition: opacity 300ms ease-in-out;
+}
+
+/* Prevent flash of unstyled content (FOUC) */
+html:not([data-theme]) body {
+  visibility: hidden;
+}
+
+html[data-theme] body {
+  visibility: visible;
+  transition: background-color 200ms ease-in-out, color 200ms ease-in-out;
+}
+
+/* Prevent skeleton flicker */
+.skeleton {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Smooth content appearance */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.fade-in {
+  animation: fadeIn 200ms ease-in-out;
+}
+
+/* Prevent hydration flicker */
+.hydration-safe {
+  content-visibility: auto;
+}
+
+/* Prevent role-based content shift */
+[data-role-loading="true"] {
+  min-height: 100px;
+  transition: min-height 200ms ease-in-out;
+}
+
+/* Prevent query loading flicker */
+.query-container {
+  min-height: inherit;
+  transition: opacity 200ms ease-in-out;
+}
+
+.query-container[data-is-loading="true"] {
+  opacity: 0.7;
+}
+
+/* Smooth theme transitions */
+* {
+  transition-property: background-color, border-color, color;
+  transition-duration: 200ms;
+  transition-timing-function: ease-in-out;
+}
+
+/* But exclude elements that should be instant */
+button, a, input, select, textarea {
+  transition-property: none;
+}
+
+/* Re-enable transitions for backgrounds only on interactive elements */
+button, a {
+  transition: background-color 150ms ease-in-out, color 150ms ease-in-out, transform 150ms ease-in-out;
+}
