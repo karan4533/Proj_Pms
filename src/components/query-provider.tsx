@@ -30,7 +30,7 @@ function makeQueryClient() {
         // Network mode for better offline handling
         networkMode: 'offlineFirst',
         // Keep previous data while fetching new data - prevents loading flicker
-        placeholderData: (previousData) => previousData,
+        placeholderData: (previousData: unknown) => previousData,
       },
       mutations: {
         // Retry mutations in production (serverless timeout handling)
