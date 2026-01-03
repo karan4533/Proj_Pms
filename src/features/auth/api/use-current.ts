@@ -8,6 +8,7 @@ export const useCurrent = () => {
     queryFn: async () => {
       const response = await client.api.auth.current.$get();
 
+      // Return null for all errors (401, 500, etc.) - prevents retry loop
       if (!response.ok) {
         return null;
       }

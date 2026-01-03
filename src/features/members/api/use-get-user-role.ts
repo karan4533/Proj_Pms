@@ -24,8 +24,8 @@ export const useGetCurrentUserRole = () => {
       const { data } = await response.json();
       return data;
     },
-    retry: false, // Don't retry 401 errors
-     staleTime: 5 * 60 * 1000, // Keep role data fresh for 5 minutes
+    retry: false, // CRITICAL: Don't retry 401 errors - causes infinite loop
+    staleTime: 5 * 60 * 1000, // Keep role data fresh for 5 minutes
     gcTime: 10 * 60 * 1000, // Keep in cache for 10 minutes
     refetchOnMount: false, // Don't refetch on every mount - prevents page flickering
     refetchOnWindowFocus: false, // Don't refetch on window focus

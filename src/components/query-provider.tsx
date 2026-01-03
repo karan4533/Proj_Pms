@@ -25,7 +25,16 @@ function makeQueryClient() {
         refetchInterval: false, // Disable auto-refetch intervals
         refetchIntervalInBackground: false, // Disable background refetch
         refetchOnReconnect: false, // Don't refetch when network reconnects - prevents flicker
-        retry: isProduction ? 3 : 2, // More retries in production for serverless cold starts
+        // Intelligent retry: Don't retry 401/403 (auth errors), do retry 500/503 (server errors)
+        retry: (failureCount, error: any) => {
+          // Never retry authentication/authorization errors
+          if (error?.message?.includes('401') || error?.message?.includes('403') || 
+              error?.message?.includes('Unauthorized') || error?.message?.includes('Forbidden')) {
+            return false;
+          }
+          // Retry server errors up to 3 times in production, 1 time in dev
+          return failureCount < (isProduction ? 3 : 1);
+        },
         retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
         // Network mode for better offline handling
         networkMode: 'offlineFirst',

@@ -8,6 +8,11 @@ export const useGetNotifications = () => {
     queryFn: async () => {
       const response = await client.api.notifications.$get();
 
+      // Return empty array on 401 instead of throwing - prevents retry loop
+      if (response.status === 401) {
+        return [];
+      }
+
       if (!response.ok) {
         throw new Error("Failed to fetch notifications");
       }
