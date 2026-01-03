@@ -3,7 +3,7 @@
 import { UserButton } from "@/features/auth/components/user-button";
 import { NotificationButton } from "@/features/notifications/components/notification-button";
 import { useGetCurrentUserRole } from "@/features/members/api/use-get-user-role";
-import { useEffect, useState, memo } from "react";
+import { useEffect, useState } from "react";
 
 import { usePathname } from "next/navigation";
 
@@ -27,7 +27,7 @@ const defaultMap = {
   clientDescription: "View your project progress and tasks.",
 };
 
-const NavbarComponent = () => {
+export const Navbar = () => {
   const pathname = usePathname();
   const pathnameParts = pathname.split("/");
   const pathnameKey = pathnameParts[3] as keyof typeof pathnameMap;
@@ -57,7 +57,7 @@ const NavbarComponent = () => {
   const displayDescription = isClient ? defaultMap.clientDescription : description;
 
   return (
-    <nav className="navbar pt-4 px-6 flex items-center justify-between">
+    <nav className="pt-4 px-6 flex items-center justify-between">
       <div className="flex-col hidden lg:flex">
         <h1 className="text-2xl font-semibold">{displayTitle}</h1>
         <p className="text-muted-foreground">{displayDescription}</p>
@@ -70,5 +70,3 @@ const NavbarComponent = () => {
     </nav>
   );
 };
-
-export const Navbar = memo(NavbarComponent);

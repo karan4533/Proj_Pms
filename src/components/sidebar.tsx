@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, memo } from "react";
+import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { 
@@ -31,7 +31,7 @@ import { MemberRole } from "@/features/members/types";
 import { DottedSeparator } from "./dotted-separator";
 import { CollapsibleSection } from "./collapsible-section";
 
-const SidebarComponent = () => {
+export const Sidebar = () => {
   const pathname = usePathname();
   const { data: isAdmin, isLoading } = useIsGlobalAdmin();
   const { role } = usePermissionContext();
@@ -64,7 +64,7 @@ const SidebarComponent = () => {
   const isProjectsActive = pathname === "/projects" || pathname === "/new-project" || pathname === "/tasks" || pathname === "/summary" || pathname === "/bugs";
 
   return (
-    <aside className="sidebar h-full bg-muted/50 dark:bg-muted/30 p-4 w-full border-r border-border overflow-y-auto">
+    <aside className="h-full bg-muted/50 dark:bg-muted/30 p-4 w-full border-r border-border overflow-y-auto">
       <div className="flex items-center gap-2">
         <Link href="/">
           <Image src="/logo.svg" alt="logo" width={50} height={39} />
@@ -297,5 +297,3 @@ const SidebarComponent = () => {
     </aside>
   );
 };
-
-export const Sidebar = memo(SidebarComponent);
