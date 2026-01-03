@@ -77,3 +77,27 @@ button, a, input, select, textarea {
 button, a {
   transition: background-color 150ms ease-in-out, color 150ms ease-in-out, transform 150ms ease-in-out;
 }
+
+/* GPU acceleration for smoother animations */
+.navbar, .sidebar, [data-loading] {
+  will-change: opacity;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+}
+
+/* Optimize long lists rendering */
+.task-list, .project-list, .member-list {
+  content-visibility: auto;
+  contain-intrinsic-size: 0 500px;
+}
+
+/* Prevent layout shift during image loading */
+img {
+  content-visibility: auto;
+}
+
+/* Optimize offscreen content */
+[data-offscreen="true"] {
+  content-visibility: auto;
+  contain-intrinsic-size: 1px 300px;
+}
