@@ -11,13 +11,8 @@ html, body {
   transition: opacity 300ms ease-in-out;
 }
 
-/* Prevent flash of unstyled content (FOUC) */
-html:not([data-theme]) body {
-  visibility: hidden;
-}
-
-html[data-theme] body {
-  visibility: visible;
+/* Smooth theme transitions on body */
+body {
   transition: background-color 200ms ease-in-out, color 200ms ease-in-out;
 }
 
