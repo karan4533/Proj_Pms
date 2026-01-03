@@ -5,7 +5,7 @@ import { client } from "@/lib/rpc";
  * Get current user's role in ANY workspace (checks first workspace found)
  * Used for global permission checks when no specific workspace context
  */
-export const useGetCurrentUserRole = () => {
+export const useGetCurrentUserRole = (options?: { enabled?: boolean }) => {
   const query = useQuery({
     queryKey: ["v2", "current-user-role"], // Added version prefix to force cache refresh
     queryFn: async () => {
@@ -29,6 +29,7 @@ export const useGetCurrentUserRole = () => {
     gcTime: 10 * 60 * 1000, // Keep in cache for 10 minutes
     refetchOnMount: false, // Don't refetch on every mount - prevents page flickering
     refetchOnWindowFocus: false, // Don't refetch on window focus
+    enabled: options?.enabled !== false, // Allow disabling the query
   });
 
   return query;

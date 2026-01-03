@@ -14,16 +14,21 @@ import { useMarkNotificationRead } from "../api/use-mark-notification-read";
 import { useMarkAllNotificationsRead } from "../api/use-mark-all-read";
 import { useClearAllNotifications } from "../api/use-clear-all-notifications";
 import { useDeleteNotification } from "../api/use-delete-notification";
+import { useCurrent } from "@/features/auth/api/use-current";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 export const NotificationButton = () => {
+  // CRITICAL: Only fetch notifications if user is logged in
+  const { data: currentUser } = useCurrent();
+  const isAuthenticated = !!currentUser;
+
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [expandedNotifications, setExpandedNotifications] = useState<Set<string>>(new Set());
-  const { data: notifications = [], isLoading } = useGetNotifications();
+  const { data: notifications = [], isLoading } = useGetNotifications({ enabled: isAuthenticated });
   const unreadCount = useGetUnreadCount();
   const { mutate: markAsRead } = useMarkNotificationRead();
   const { mutate: markAllAsRead } = useMarkAllNotificationsRead();

@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 
 import { client } from "@/lib/rpc";
 
-export const useGetNotifications = () => {
+export const useGetNotifications = (options?: { enabled?: boolean }) => {
   const query = useQuery({
     queryKey: ["notifications"],
     queryFn: async () => {
@@ -22,6 +22,7 @@ export const useGetNotifications = () => {
     },
     staleTime: 2 * 60 * 1000, // 2 minutes
     refetchOnWindowFocus: false, // Disable auto-refetch on focus
+    enabled: options?.enabled !== false, // Allow disabling the query
     // refetchInterval removed - use manual refetch instead
   });
 
