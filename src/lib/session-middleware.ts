@@ -23,6 +23,7 @@ export const sessionMiddleware = createMiddleware<AdditionalContext>(
       const sessionToken = getCookie(c, AUTH_COOKIE);
 
       if (!sessionToken) {
+        console.warn('[Session] No session cookie found:', AUTH_COOKIE);
         return c.json({ error: "Unauthorized" }, 401);
       }
 
@@ -60,6 +61,7 @@ export const sessionMiddleware = createMiddleware<AdditionalContext>(
         .limit(1);
 
       if (!result) {
+        console.warn('[Session] Invalid session token:', sessionToken.substring(0, 20) + '...');
         return c.json({ error: "Unauthorized" }, 401);
       }
 
@@ -81,14 +83,7 @@ export const sessionMiddleware = createMiddleware<AdditionalContext>(
             sameSite: "lax",
           };
 
-          if (isProd && process.env.NEXT_PUBLIC_APP_URL) {
-            try {
-              const url = new URL(process.env.NEXT_PUBLIC_APP_URL);
-              if (!url.hostname.match(/^(localhost|127\.0\.0\.1|\d+\.\d+\.\d+\.\d+)$/)) {
-                cookieOptions.domain = url.hostname;
-              }
-            } catch {}
-          }
+          // Do not set domain for Vercel - causes issues
 
           deleteCookie(c, AUTH_COOKIE, cookieOptions);
         } catch (error) {

@@ -32,18 +32,9 @@ export function getAuthCookieConfig(options: {
     sameSite: 'lax', // Industry standard for auth cookies
   };
 
-  // Add domain in production to prevent subdomain issues
-  if (isProd && process.env.NEXT_PUBLIC_APP_URL) {
-    try {
-      const url = new URL(process.env.NEXT_PUBLIC_APP_URL);
-      // Only set domain if it's not localhost/IP
-      if (!url.hostname.match(/^(localhost|127\.0\.0\.1|\d+\.\d+\.\d+\.\d+)$/)) {
-        config.domain = url.hostname;
-      }
-    } catch (e) {
-      console.warn('[Cookie Config] Failed to parse NEXT_PUBLIC_APP_URL:', e);
-    }
-  }
+  // IMPORTANT: Do NOT set domain in production for Vercel
+  // Vercel handles cookies correctly without explicit domain
+  // Setting domain can cause issues with .vercel.app subdomains
 
   // Add maxAge for setting cookies (not for deletion)
   if (options.includeMaxAge && !options.forDeletion) {

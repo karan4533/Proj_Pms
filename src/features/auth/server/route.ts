@@ -95,7 +95,12 @@ const app = new Hono()
 
       // Use standardized cookie configuration
       const cookieOptions = getAuthCookieConfig({ includeMaxAge: true });
-      logCookieConfig('set', cookieOptions);
+      console.log('[Login] Setting session cookie:', {
+        cookieName: AUTH_COOKIE,
+        tokenLength: sessionToken.length,
+        options: cookieOptions,
+        userAgent: c.req.header('user-agent')?.substring(0, 50)
+      });
 
       setCookie(c, AUTH_COOKIE, sessionToken, cookieOptions);
 
