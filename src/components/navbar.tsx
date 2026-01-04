@@ -3,6 +3,7 @@
 import { UserButton } from "@/features/auth/components/user-button";
 import { NotificationButton } from "@/features/notifications/components/notification-button";
 import { useGetCurrentUserRole } from "@/features/members/api/use-get-user-role";
+import { useCurrent } from "@/features/auth/api/use-current";
 import { useEffect, useState } from "react";
 
 import { usePathname } from "next/navigation";
