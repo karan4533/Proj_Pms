@@ -35,7 +35,8 @@ export const Navbar = () => {
   const { title, description } = pathnameMap[pathnameKey] || defaultMap;
   
   // Check if user is CLIENT
-  const { data: roleData, isLoading } = useGetCurrentUserRole();
+  const { data: user } = useCurrent();
+  const { data: roleData, isLoading } = useGetCurrentUserRole({ enabled: !!user });
   const [mounted, setMounted] = useState(false);
   const [isClient, setIsClient] = useState(false);
 
