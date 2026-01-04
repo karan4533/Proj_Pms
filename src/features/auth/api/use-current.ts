@@ -19,7 +19,7 @@ export const useCurrent = () => {
     },
     staleTime: 5 * 60 * 1000, // 5 minutes - prevent constant refetching
     refetchOnWindowFocus: false, // Don't refetch on window focus
-    refetchOnMount: false, // Don't refetch on every mount
+    refetchOnMount: "always", // Always refetch on mount to ensure fresh auth state
     retry: false, // CRITICAL: Never retry auth checks
   });
 

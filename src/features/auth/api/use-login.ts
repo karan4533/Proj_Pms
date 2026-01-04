@@ -26,9 +26,14 @@ export const useLogin = () => {
     },
     onSuccess: () => {
       toast.success("Logged in successfully");
-      // Query invalidation triggers re-render, no need for router.refresh()
+      // CRITICAL: Invalidate queries to clear old auth state
       queryClient.invalidateQueries({ queryKey: ["v2", "current"] });
       queryClient.invalidateQueries({ queryKey: ["v2", "current-user-role"] });
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      
+      // Force navigation to home page to trigger server-side auth check
+      // This ensures cookies are properly read and user session is established
+      router.push("/");
     },
     onError: (error) => {
       toast.error(error.message || "Invalid credentials");
