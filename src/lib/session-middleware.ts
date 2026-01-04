@@ -62,6 +62,20 @@ export const sessionMiddleware = createMiddleware<AdditionalContext>(
 
       if (!result) {
         console.warn('[Session] Invalid session token:', sessionToken.substring(0, 20) + '...');
+        
+        // Delete invalid cookie to prevent infinite loop
+        const { deleteCookie } = await import('hono/cookie');
+        const isProd = process.env.NODE_ENV === 'production';
+        const cookieOptions: any = {
+          path: "/",
+          httpOnly: true,
+          secure: isProd,
+          sameSite: "lax",
+        };
+        
+        deleteCookie(c, AUTH_COOKIE, cookieOptions);
+        console.log('[Session] Deleted invalid session cookie');
+        
         return c.json({ error: "Unauthorized" }, 401);
       }
 
